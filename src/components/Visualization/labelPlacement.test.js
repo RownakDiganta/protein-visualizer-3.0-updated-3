@@ -412,4 +412,96 @@ describe('layoutAminoAcidLabelsByType (full-length overview: one compact level p
     expect(lLabel.y).toBe(AMINO_ACID_BASE_CONNECTOR_LENGTH + AMINO_ACID_LANE_GAP);
   });
 });
+
+// #RD START
+// Regression coverage for Professor Sun's "I did not see the W is leveled"
+// report: a direct, unmistakable check (in her own terms) that every W label
+// in the full-length view sits on one row with one connector length, using
+// the exact assertion shape she asked for.
+describe('W-specific leveling regression (full-length view)', () => {
+  test('all full-length W labels share exactly one Y-coordinate, even when densely packed', () => {
+    const labels = [
+      { x: 100, text: 'W100', aminoAcid: 'W' },
+      { x: 101, text: 'W101', aminoAcid: 'W' },
+      { x: 102, text: 'W102', aminoAcid: 'W' },
+      { x: 103, text: 'W103', aminoAcid: 'W' },
+      { x: 104, text: 'W104', aminoAcid: 'W' },
+      { x: 105, text: 'W105', aminoAcid: 'W' },
+      { x: 106, text: 'W106', aminoAcid: 'W' },
+      { x: 900, text: 'W900', aminoAcid: 'W' } // far away, still same level
+    ];
+    const layout = layoutAminoAcidLabelsByType({ labels });
+    const wLabels = layout.filter((label) => label.aminoAcid === 'W');
+
+    expect(wLabels).toHaveLength(labels.length);
+    expect(new Set(wLabels.map((label) => label.y)).size).toBe(1);
+  });
+
+  test('all full-length W connector lines share exactly one length (lane, and therefore y, is uniform)', () => {
+    const labels = [
+      { x: 100, text: 'W100', aminoAcid: 'W' },
+      { x: 102, text: 'W102', aminoAcid: 'W' },
+      { x: 104, text: 'W104', aminoAcid: 'W' }
+    ];
+    const layout = layoutAminoAcidLabelsByType({ labels });
+    const wLabels = layout.filter((label) => label.aminoAcid === 'W');
+
+    // Connector length is derived purely from `y` at render time
+    // (Visualization/index.js: y2 = SULFIDE_POS +/- y) - one y means one
+    // connector length. lane is the other value the render path could key
+    // off of, so it's checked too.
+    expect(new Set(wLabels.map((label) => label.y)).size).toBe(1);
+    expect(new Set(wLabels.map((label) => label.lane)).size).toBe(1);
+    // No sub-lane concept exists in the full-length by-type layout at all.
+    wLabels.forEach((label) => expect(label.subLane).toBeUndefined());
+  });
+
+  test('no W label is dropped, merged, or moved off its residue x-position while being leveled', () => {
+    const labels = [
+      { x: 100, text: 'W100', aminoAcid: 'W', position: 100 },
+      { x: 101, text: 'W101', aminoAcid: 'W', position: 101 },
+      { x: 102, text: 'W102', aminoAcid: 'W', position: 102 }
+    ];
+    const layout = layoutAminoAcidLabelsByType({ labels });
+    const wLabels = layout.filter((label) => label.aminoAcid === 'W');
+
+    expect(wLabels.map((label) => label.position)).toEqual([100, 101, 102]);
+    expect(wLabels.map((label) => label.x)).toEqual([100, 101, 102]);
+  });
+
+  test('non-W amino acids keep their own independent, unaffected level when W is also selected', () => {
+    const labels = [
+      { x: 100, text: 'K100', aminoAcid: 'K' },
+      { x: 101, text: 'K101', aminoAcid: 'K' },
+      { x: 100, text: 'W100', aminoAcid: 'W' },
+      { x: 102, text: 'W102', aminoAcid: 'W' },
+      { x: 104, text: 'W104', aminoAcid: 'W' }
+    ];
+    const layout = layoutAminoAcidLabelsByType({ labels });
+    const kLabels = layout.filter((label) => label.aminoAcid === 'K');
+    const wLabels = layout.filter((label) => label.aminoAcid === 'W');
+
+    expect(new Set(kLabels.map((label) => label.y)).size).toBe(1);
+    expect(new Set(wLabels.map((label) => label.y)).size).toBe(1);
+    expect(kLabels[0].y).not.toBe(wLabels[0].y);
+  });
+
+  test('the zoomed/window view keeps its own collision-aware per-residue behavior for W (not leveled the same way, by design)', () => {
+    // The window view intentionally uses the OTHER layout function
+    // (layoutAminoAcidLabels), which lanes individual residues by collision
+    // regardless of amino-acid type - this is unchanged and expected to
+    // differ from the full-length W level.
+    const denseW = [
+      { x: 100, text: 'W100', aminoAcid: 'W' },
+      { x: 102, text: 'W102', aminoAcid: 'W' },
+      { x: 104, text: 'W104', aminoAcid: 'W' }
+    ];
+    const windowLayout = layoutAminoAcidLabels({ labels: denseW, side: 'below' });
+    const lanes = new Set(windowLayout.map((label) => label.lane));
+    // Dense, overlapping same-x-ish labels still get spread across multiple
+    // collision-avoidance lanes in the window view - that's correct, existing
+    // behavior and must not be "fixed" to match the full-length W level.
+    expect(lanes.size).toBeGreaterThan(1);
+  });
+});
 // #RD END
