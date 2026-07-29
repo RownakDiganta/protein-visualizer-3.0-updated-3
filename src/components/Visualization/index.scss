@@ -1,0 +1,83 @@
+// src/components/Visualization/index.scss
+// Text/label styling for disulfide and glycosylation annotations, plus
+// layout for the main SVG wrapper and the offscreen window-view SVG.
+.sulfide-labels {
+  font-size: 1.0rem;
+  font-weight: bold;
+  &--pos {
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+}
+
+// #RD START
+// Amino-acid selection labels get their own classes (not .sulfide-labels, which
+// disulfide/sequon/cysteine labels also use) so this halo only affects the
+// amino-acid lane-packing labels and doesn't change any other existing feature's
+// appearance. The white stroke drawn behind the text (paint-order: stroke) keeps
+// letters/numbers readable even when a connector line or another nearby label
+// sits behind them in a dense, multi-lane layout.
+.amino-acid-label {
+  font-size: 1.0rem;
+  font-weight: bold;
+  paint-order: stroke;
+  stroke: white;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  &--pos {
+    font-size: 0.75rem;
+    font-weight: bold;
+    paint-order: stroke;
+    stroke: white;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+}
+// #RD END
+
+.glyco-labels {
+  font-size: 1.0rem;
+  font-weight: bold;
+  color: white; 
+  &--pos {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: white;
+  }
+}
+
+.windowSvg--wrapper {
+  position: relative;
+  top: -100px;
+  z-index: -1000;
+  // display: inl;
+}
+
+.svg-wrapper{
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+}
+
+// #RD START
+// Applied instead of (never together with) the bare .svg-wrapper above, only for
+// the default view (scaleFactor === 1 and fullScale off - see index.js). The base
+// rule above never set justify-content, so on the flex main axis (horizontal) the
+// <svg> defaulted to flex-start (left-aligned) rather than being centered in the
+// wrapper. width: 100vw makes the wrapper span the true, live viewport width
+// (matching the width: 100vw convention already used by .App-header/.App-canvas
+// in App.scss) regardless of any mismatch between the SVG's own rendered width
+// and the current viewport, so justify-content: center always has real free
+// space to work with. Deliberately NOT applied when horizontally scaled
+// (scaleVisualization) or in Full Scale mode, since those intentionally render
+// the protein flush-left with horizontal scrolling so the start of the sequence
+// stays at the natural scroll position - centering an overflowing SVG there
+// would risk scrolling the NH2 terminus off-screen.
+.svg-wrapper--centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  margin-top: 15px;
+}
+// #RD END
