@@ -31,6 +31,7 @@ const SPINE_HEIGHT = 30;
 const { COLOR_PALLETE } = constants;
 // #RD START
 const {
+  AMINO_ACIDS,
   AMINO_ACID_RENDER_STYLE,
   DEFAULT_AMINO_ACID_RENDER_STYLE,
   MAX_SELECTED_AMINO_ACIDS,
@@ -108,12 +109,6 @@ function Visualization(props) {
   const { start: windowStart, end: windowEnd } = windowPos;
   const [windowView, setWindowView] = useState(false);
   const [showGlyco, setShowGlyco] = useState(true);
-  const [showOGalNAc, setShowOGalNAc] = useState(true);
-  const [showOGlc, setShowOGlc] = useState(true);
-  const [showGlycation, setShowGlycation] = useState(true);
-  const [showPhosphoserine, setShowPhosphoserine] = useState(true);
-  const [showPhosphothreonine, setShowPhosphothreonine] = useState(true);
-  const [showPhosphotyrosine, setShowPhosphotyrosine] = useState(true);
   const [showDisulfide, setShowDisulfide] = useState(true);
   const [showOutsideDomain, setShowOutisde] = useState(true);
   const [showInsideDomain, setShowInside] = useState(true);
@@ -126,6 +121,11 @@ function Visualization(props) {
   // const [showFreeW, setShowFreeW] = useState(false);
   // #RD END OLD CODE
   // #RD START
+  // selectedAminoAcids now holds a mix of amino-acid letters (e.g. "W") AND
+  // modification keys (e.g. "phosphoserine") - one shared array/limit for both,
+  // per the "amino acids and mods" selector panel (see Legend/index.js). The
+  // toggle function itself is unchanged: it only ever pushes/removes a string,
+  // so it works identically for either kind of key.
   const [selectedAminoAcids, setSelectedAminoAcids] = useState([]);
 
   const toggleAminoAcidSelection = (aminoAcid) => {
@@ -139,6 +139,19 @@ function Visualization(props) {
       return [...prev, aminoAcid];
     });
   };
+
+  // Visibility for the 6 migrated modification types is now derived directly
+  // from selection membership (visible once selected, like amino acids already
+  // were) instead of independent always-on booleans - replaces the old
+  // showOGalNAc/showOGlc/showGlycation/showPhosphoserine/showPhosphothreonine/
+  // showPhosphotyrosine useState hooks. Recomputed each render from
+  // selectedAminoAcids, so no separate effect/dependency is needed.
+  const showOGalNAc = selectedAminoAcids.includes('o_glcnac');
+  const showOGlc = selectedAminoAcids.includes('o_glc');
+  const showGlycation = selectedAminoAcids.includes('glycation');
+  const showPhosphoserine = selectedAminoAcids.includes('phosphoserine');
+  const showPhosphothreonine = selectedAminoAcids.includes('phosphothreonine');
+  const showPhosphotyrosine = selectedAminoAcids.includes('phosphotyrosine');
   // #RD END
 
   const scaleVisualization = scaleFactor !== 1;
@@ -187,7 +200,16 @@ function Visualization(props) {
     const aboveLabels = [];
     const belowLabels = [];
 
-    selectedAminoAcids.forEach((aminoAcid, aminoAcidLane) => {
+    // selectedAminoAcids may also contain modification keys (see above) - only
+    // actual amino-acid letters get a label/connector lane here, and their
+    // lane/color assignment is based on their order among ONLY the letters, so
+    // an amino acid's rendering never shifts depending on which/how many
+    // modifications happen to be selected alongside it.
+    const selectedAminoAcidLetters = selectedAminoAcids.filter((key) =>
+      AMINO_ACIDS.includes(key)
+    );
+
+    selectedAminoAcidLetters.forEach((aminoAcid, aminoAcidLane) => {
       const style =
         AMINO_ACID_RENDER_STYLE[aminoAcid] || DEFAULT_AMINO_ACID_RENDER_STYLE;
       const color =
@@ -1384,12 +1406,6 @@ function Visualization(props) {
     svgRef.current,
     showDisulfide,
     showGlyco,
-    showOGalNAc,
-    showOGlc,
-    showGlycation,
-    showPhosphoserine,
-    showPhosphothreonine,
-    showPhosphotyrosine,
     showSequons,
     showCysteines,
     showOutsideDomain,
@@ -1497,9 +1513,6 @@ function Visualization(props) {
           phosphothreonine={phosphothreonine}
           phosphotyrosine={phosphotyrosine}
           toggleGlyco={setShowGlyco}
-          toggleOGalNAc={setShowOGalNAc}
-          toggleOGlc={setShowOGlc}
-          toggleGlycation={setShowGlycation}
           toggleSulfide={setShowDisulfide}
           toggleOutside={setShowOutisde}
           toggleInside={setShowInside}
@@ -1511,9 +1524,6 @@ function Visualization(props) {
           // toggleFreeK={setShowFreeK}
           // toggleFreeW={setShowFreeW}
           // #RD END OLD CODE
-          togglePhosphoserine={setShowPhosphoserine}
-          togglePhosphothreonine={setShowPhosphothreonine}
-          togglePhosphotyrosine={setShowPhosphotyrosine}
           length={proteinLength}
           species={species}
         />

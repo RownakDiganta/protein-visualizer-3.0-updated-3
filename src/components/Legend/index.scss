@@ -41,9 +41,11 @@
     // width: 250px;
     // #RD END OLD CODE
     // #RD START
-    // Shifted up ~1cm (150px - 38px) so the amino-acid chip grid has room to wrap
-    // to extra rows without pushing "Protein Length"/"Species" off the bottom of
-    // the viewport - this panel has no scroll/max-height, so it just grows downward.
+    // Now used only by the standalone "Amino acids and mods" selector panel
+    // (Free Sequon/Cysteine, Protein Length, and Species moved into the left
+    // legend; the old right-side "Legend and scientific symbols" card was
+    // removed) - top stays 112px, matching the left legend, so the panel
+    // sits at the same height with no reserved space above it.
     top: 112px;
     width: 300px;
     // #RD END
@@ -69,15 +71,142 @@
     }
   }
 
+  // #RD START
+  // Each row is a normal-flow flex row (label + icon/badges); vertical spacing
+  // BETWEEN rows comes entirely from the parent --panelContent's `gap` (see
+  // below), not from margins on the rows themselves - this replaces the old
+  // negative-margin "tight stacking" hack, which was tuned for one specific,
+  // fixed sequence of rows and broke (overlapping text) as soon as rows were
+  // added/reordered. align-items: center keeps multi-child rows like Topology
+  // (label + two Buttons) vertically aligned without manual offsets.
+  //
+  // --menuItem (Topology/Protein Length/Species) and --featureRow (the
+  // eye-icon rows) share ONE identical padding/min-height contract here so
+  // every row - regardless of which of the two layouts it uses - has the
+  // same top/bottom padding and the same minimum height, instead of each
+  // relying on its own content to happen to look the same size. min-height
+  // (not a fixed height) so rows with taller content, like Topology's
+  // buttons, are never clipped.
+  &--menuItem,
+  &--featureRow {
+    padding: 4px 0;
+    min-height: 32px;
+    box-sizing: border-box;
+  }
+
   &--menuItem {
     display: flex;
-    margin-top: -23px;
-    margin-bottom: -23px;
+    align-items: center;
   }
 
   &--menuSymbol {
     display: flex;
+    align-items: center;
   }
+
+  // #RD START
+  // Shared 2-column grid for the visibility-toggle ("eye icon") rows -
+  // N-Glycan, Disulfides, Free Sequon, Free Cysteine. Column 1 (label +
+  // count) is flexible (minmax(0, 1fr) lets it shrink/wrap instead of
+  // overflowing on narrow widths); column 2 is a FIXED 72px width (wide
+  // enough for "SCIENTIFIC" - the header's longest word - to sit on one line
+  // without being force-broken mid-word; 48px was too narrow and let the
+  // header's flex item overflow the column instead of wrapping cleanly,
+  // which is what actually made it look like it was floating off-position),
+  // so every row's eye icon lands at the exact same horizontal position
+  // regardless of how long its label text is. Previously these rows used
+  // .legend--menuItem (a plain flex row) whose second child auto-sized right
+  // after the label's content width, so the icon's x-position drifted per
+  // row - that was the original root cause of the misalignment, not any one
+  // row's own margin/padding.
+  &--featureRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 72px;
+    align-items: center;
+    column-gap: 10px;
+  }
+
+  // Left-aligns the eye icon within its fixed-width grid cell, flush to the
+  // column's left edge. Shared by BOTH the header row's label cell and every
+  // data row's icon cell (see Legend/index.js) - they must use the exact
+  // same justify-content value, or the header's left edge and the icons'
+  // left edge land at two different x-coordinates even though they share the
+  // same grid-template-columns (measured: with the icons centered and only
+  // the header left-aligned, the header sat 12px to the left of the icons'
+  // actual rendered edge - that was the root cause of the "still misaligned"
+  // report, not the grid itself).
+  //
+  // min-width: 0 overrides the flex item's default min-width: auto, which
+  // otherwise refuses to shrink the cell below its content's natural width -
+  // without it, this cell (and the header label wrapped in it) could overflow
+  // past the grid column's 72px instead of staying inside it.
+  &--symbolCell {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    min-width: 0;
+
+    // .button-visibility--on/--off carry a position:relative left/bottom
+    // nudge tuned for their OTHER usage outside this grid (e.g. the Legend
+    // title's transparency toggle, left untouched there) - neutralized only
+    // inside this cell, since flex-start now places the icon correctly on
+    // its own without it.
+    .button-visibility--on,
+    .button-visibility--off {
+      position: static;
+    }
+
+    // #RD START
+    // Nested here (compiles to `.legend--symbolCell .legend--symbolHeaderLabel`)
+    // rather than written as a standalone, same-level `&--symbolHeaderLabel`
+    // rule. MUI's Typography also carries its OWN class here
+    // (.MuiTypography-body1, since no `variant` prop is set) - a bare,
+    // single-class selector has the SAME specificity as .MuiTypography-body1,
+    // so whichever one MUI's JSS runtime happened to insert into <head>
+    // later silently won (measured with real DevTools computed styles:
+    // font-size actually computed to MUI's 16px default, not this rule's
+    // 9px - the actual reason "SCIENTIFIC" never fit any column width and
+    // kept overflowing/wrapping badly, no matter how wide the column was
+    // made). This descendant selector has two classes - specificity that
+    // reliably beats MUI's one-class rule regardless of stylesheet order -
+    // the correct fix, not a wider column or !important.
+    .legend--symbolHeaderLabel {
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      text-align: left;
+      line-height: 1.15;
+      color: rgba(0, 0, 0, 0.6);
+      // Belt-and-suspenders alongside .legend--symbolCell's own min-width: 0
+      // above - guarantees this label wraps within whatever width its cell
+      // actually has (e.g. on a narrower sidebar) instead of overflowing it.
+      overflow-wrap: break-word;
+      min-width: 0;
+    }
+    // #RD END
+  }
+
+  // Column-header row sitting above the feature rows, sharing the exact same
+  // .legend--featureRow grid AND the exact same .legend--symbolCell
+  // left-alignment, so its label starts at the identical x-coordinate as
+  // every eye icon below it - not the Tabs component (that's a separate
+  // control, unrelated to this column's alignment).
+  &--featureHeader {
+    margin-bottom: 2px;
+  }
+  // #RD END
+
+  // Wraps each tab panel's rows (see infoLeft/symbolLeft in Legend/index.js).
+  // Normal block/flex flow - the container's height always grows to fit
+  // however many rows it holds, so it can never render shorter than its
+  // actual content.
+  &--panelContent {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  // #RD END
 
   &--header {
     display: flex;
@@ -87,22 +216,6 @@
   }
 
   // #RD START
-  // Dedicated container for the amino-acid picker: unlike --menuItem (which uses
-  // negative top/bottom margins to keep single-line rows tight), this section wraps
-  // onto several lines, so it needs normal positive spacing to avoid squashing into
-  // the items above/below it.
-  &--aminoAcidSection {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    // Both neighbors are --menuItem rows, which use -23px margins to keep their own
-    // single-line siblings tight. Since this section wraps onto multiple lines,
-    // its margins need to more than offset that -23px or it overlaps the row above
-    // (Free Cysteine) and the row below (Protein Length).
-    margin-top: 34px;
-    margin-bottom: 34px;
-  }
-
   &--aminoAcidGrid {
     display: flex;
     flex-wrap: wrap;
@@ -111,6 +224,27 @@
     margin-top: 6px;
     margin-bottom: 10px;
     max-width: 260px;
+  }
+  // #RD END
+
+  // #RD START
+  // Title/subtitle pair for the "Amino acids and mods" panel heading (see
+  // Legend/index.js) - flex column + gap controls all the spacing between
+  // the two lines, so no margin on either Typography is needed.
+  &--panelTitle {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+
+  // Same red as classes.title (matches the left "Legend" heading's color),
+  // just smaller - reads as a secondary line under the main heading rather
+  // than a continuation that happened to wrap.
+  &--panelSubtitle {
+    font-size: 13px;
+    font-weight: bold;
+    color: #cb2d39;
   }
   // #RD END
 }

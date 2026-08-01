@@ -70,6 +70,25 @@ const DEFAULT_AMINO_ACID_RENDER_STYLE = { visualize: 'solid', textDistance: 0 };
 // #RD END
 
 // #RD START
+// Non-amino-acid "modification" options that share the same combined selector
+// panel and MAX_SELECTED_AMINO_ACIDS limit as the amino-acid letters (see
+// toggleAminoAcidSelection/selectedAminoAcids in Visualization/index.js) -
+// selecting any mix of up to MAX_SELECTED_AMINO_ACIDS amino acids and/or
+// modifications is allowed, since both live in the same selection array.
+// `key` matches the existing per-protein data prop name (App.jsx/parser) so it
+// can be used directly both as the selection-array entry and to look up that
+// modification's count/visibility; `label` is the exact existing display text.
+const MODIFICATION_OPTIONS = [
+  { key: 'o_glcnac', label: 'O-GalNAc' },
+  { key: 'o_glc', label: 'O-Glc' },
+  { key: 'glycation', label: 'Glycation' },
+  { key: 'phosphoserine', label: 'PhosphoS' },
+  { key: 'phosphothreonine', label: 'PhosphoT' },
+  { key: 'phosphotyrosine', label: 'PhosphoY' }
+];
+// #RD END
+
+// #RD START
 // Stable per-selection-slot colors (Okabe-Ito colorblind-friendly palette) so the
 // 1st/2nd/3rd/4th selected amino acid each get a distinct, readable connector-line/
 // marker/label color. Shared between Visualization (rendering) and Legend
@@ -90,6 +109,7 @@ export default {
   MAX_SELECTED_AMINO_ACIDS,
   AMINO_ACID_RENDER_STYLE,
   DEFAULT_AMINO_ACID_RENDER_STYLE,
-  SELECTED_AMINO_ACID_COLORS
+  SELECTED_AMINO_ACID_COLORS,
+  MODIFICATION_OPTIONS
   // #RD END
 };

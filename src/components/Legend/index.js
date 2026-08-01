@@ -30,9 +30,8 @@ import './index.scss';
 const {
   AMINO_ACIDS,
   MAX_SELECTED_AMINO_ACIDS,
-  AMINO_ACID_RENDER_STYLE,
-  DEFAULT_AMINO_ACID_RENDER_STYLE,
-  SELECTED_AMINO_ACID_COLORS
+  SELECTED_AMINO_ACID_COLORS,
+  MODIFICATION_OPTIONS
 } = constants;
 
 // Slightly darker variant of a slot color, used for the selected chip's border so
@@ -67,7 +66,16 @@ function TabPanel(props) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && <CardContent>{children}</CardContent>}
+      {/* #RD START */}
+      {/* Plain div, not another <CardContent> - this panel already sits
+          inside legendLeft's own <CardContent>, and MUI's CardContent adds
+          extra (24px) bottom padding to whichever CardContent is the
+          last-child of its parent. Nesting a second CardContent in here
+          stacked that padding on top of the outer one, which was the actual
+          source of the excess empty space at the bottom of the Legend
+          card. */}
+      {value === index && <div>{children}</div>}
+      {/* #RD END */}
     </div>
   );
 }
@@ -134,9 +142,6 @@ const useStyles = makeStyles({
  * @property {Object} phosphothreonine object containing Phosphothreonine info
  * @property {Object} phosphotyrosine object containing Phosphotyrosine info
  * @property {func} toggleGlyco Function that toggles glyco bond visibility
- * @property {func} toggleOGalNAc Function that toggles O-GalNAc bond visibility
- * @property {func} toggleOGlc Function that toggles O-Glc bond visibility
- * @property {func} toggleGlycation Function that toggles N-linked Glycation bond visibility
  * @property {func} toggleSulfide Function that toggles sulfide bond visibility
  * @property {func} toggleOutsideDomain Function that toggles Outside Domain visibility
  * @property {func} toggleInsideDomain Function that toggles Inside Domain visibility
@@ -146,9 +151,6 @@ const useStyles = makeStyles({
  * @property {func} toggleFreeT Function that toggles Free T visibility
  * @property {func} toggleFreeK Function that toggles Free K visibility
  * @property {func} toggleFreeW Function that toggles Free W visibility
- * @property {func} togglePhosphoserine Function that toggles Phosphoserine visibility
- * @property {func} togglePhosphothreonine Function that toggles Phosphothreonine visibility
- * @property {func} togglePhosphotyrosine Function that toggles Phosphotyrosine visibility
  * @property {number} length total length of protein structure
  * @property {string} species the species that the protein belong to
  */
@@ -176,12 +178,6 @@ function Legend(props) {
     toggleAminoAcid,
     // #RD END
     toggleGlyco,
-    toggleOGalNAc,
-    toggleOGlc,
-    toggleGlycation,
-    togglePhosphoserine,
-    togglePhosphothreonine,
-    togglePhosphotyrosine,
     toggleSulfide,
     toggleOutside,
     toggleInside,
@@ -199,9 +195,6 @@ function Legend(props) {
   const [tabTransparency, setTabTransparency] = useState(true);
   const [tabValue, setTabValue] = useState(0);
   const [showGlyco, setShowGlyco] = useState(true);
-  const [showOGalNAc, setShowOGalNAc] = useState(true);
-  const [showOGlc, setShowOGlc] = useState(true);
-  const [showGlycation, setShowGlycation] = useState(true);
   const [showSulfide, setShowSulfide] = useState(true);
   const [showOutsideDomain, setShowOutside] = useState(true);
   const [showInsideDomain, setShowInside] = useState(true);
@@ -213,9 +206,6 @@ function Legend(props) {
   // const [showFreeK, setShowFreeK] = useState(false);
   // const [showFreeW, setShowFreeW] = useState(false);
   // #RD END OLD CODE
-  const [showPhosphoserine, setShowPhosphoserine] = useState(true);
-  const [showPhosphothreonine, setShowPhosphothreonine] = useState(true);
-  const [showPhosphotyrosine, setShowPhosphotyrosine] = useState(true);
   const classes = useStyles();
 
   const handleTabChange = (event, newTabValue) => {
@@ -233,24 +223,6 @@ function Legend(props) {
     } else if (element === 'glyco') {
       toggleGlyco(!showGlyco);
       setShowGlyco(!showGlyco);
-    } else if (element === 'o_glcnac') {
-      toggleOGalNAc(!showOGalNAc);
-      setShowOGalNAc(!showOGalNAc);
-    } else if (element === 'o_glc') {
-      toggleOGlc(!showOGlc);
-      setShowOGlc(!showOGlc);
-    } else if (element === 'glycation') {
-      toggleGlycation(!showGlycation);
-      setShowGlycation(!showGlycation);
-    } else if (element === 'phosphoserine') {
-      togglePhosphoserine(!showPhosphoserine);
-      setShowPhosphoserine(!showPhosphoserine);
-    } else if (element === 'phosphothreonine') {
-      togglePhosphothreonine(!showPhosphothreonine);
-      setShowPhosphothreonine(!showPhosphothreonine);
-    } else if (element === 'phosphotyrosine') {
-      togglePhosphotyrosine(!showPhosphotyrosine);
-      setShowPhosphotyrosine(!showPhosphotyrosine);
     } else if (element === 'outside') {
       toggleOutside(!showOutsideDomain);
       setShowOutside(!showOutsideDomain);
@@ -282,176 +254,123 @@ function Legend(props) {
 
   const infoLeft = (
     <TabPanel index={0} value={tabValue}>
-      <div className="legend--menuItem">
+      {/* #RD START */}
+      {/* Normal flex-column flow with `gap` (see .legend--panelContent) instead
+          of the old negative-margin stacking hack - each row below occupies
+          its own real vertical space and the container grows to fit however
+          many rows are present, so nothing overlaps regardless of how many
+          sections are added. */}
+      <div className="legend--panelContent">
+      {/* #RD START */}
+      {/* legend--featureRow: shared 2-column grid (label+count | eye icon) so
+          all four rows' icons share one exact horizontal position regardless
+          of label length - see .legend--featureRow/.legend--symbolCell. The
+          header row below shares that exact same grid AND the exact same
+          .legend--symbolCell (left-aligned) as the icon rows, so its label's
+          left edge lines up with the eye icons' actual left edge, not just
+          with the column boundary. */}
+      <div className="legend--featureRow legend--featureHeader">
+        <div />
+        <div className="legend--symbolCell">
+          <Typography className="legend--symbolHeaderLabel">
+            Scientific Symbol
+          </Typography>
+        </div>
+      </div>
+      <div className="legend--featureRow">
         <Typography>
           N-Glycan:
           <Typography display="inline" classes={{ root: 'bold-text' }}>
             {glycoslation.length}
           </Typography>
         </Typography>
-        <div className={`button-visibility${showGlyco ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('glyco')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
+        <div className="legend--symbolCell">
+          <div className={`button-visibility${showGlyco ? '--on' : '--off'}`}>
+            <Tooltip title="toggle visibility" placement="right-end">
+              <IconButton
+                aria-label="delete"
+                className={{ root: 'on' }}
+                size="small"
+                onClick={() => handleToggle('glyco')}
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+          </div>
         </div>
       </div>
-      <div className="legend--menuItem">
-        <Typography>
-          O-GalNAc:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {o_glcnac.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showOGalNAc ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('o_glcnac')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          O-Glc:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {o_glc.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showOGlc ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('o_glc')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          Glycation:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {glycation.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showGlycation ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('glycation')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          PhosphoS:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {phosphoserine.length}
-          </Typography>
-        </Typography>
-        <div
-          className={`button-visibility${showPhosphoserine ? '--on' : '--off'}`}
-        >
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('phosphoserine')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          PhosphoT:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {phosphothreonine.length}
-          </Typography>
-        </Typography>
-        <div
-          className={`button-visibility${showPhosphothreonine ? '--on' : '--off'}`}
-        >
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('phosphothreonine')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          PhosphoY:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {phosphotyrosine.length}
-          </Typography>
-        </Typography>
-        <div
-          className={`button-visibility${showPhosphotyrosine ? '--on' : '--off'}`}
-        >
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              className={{ root: 'on' }}
-              onClick={() => handleToggle('phosphotyrosine')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
+      <div className="legend--featureRow">
         <Typography>
           Disulfides:
           <Typography display="inline" classes={{ root: 'bold-text' }}>
             {disulfideBonds.length}
           </Typography>
         </Typography>
-        <div className={`button-visibility${showSulfide ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              onClick={() => handleToggle('sulfide')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
+        <div className="legend--symbolCell">
+          <div className={`button-visibility${showSulfide ? '--on' : '--off'}`}>
+            <Tooltip title="toggle visibility" placement="right-end">
+              <IconButton
+                aria-label="delete"
+                size="small"
+                onClick={() => handleToggle('sulfide')}
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+          </div>
         </div>
       </div>
-      <div
-        className="legend--menuItem"
-        style={{
-          alignItems: 'center',
-          marginTop: '-33px',
-          marginBottom: '-40px'
-        }}
-      >
-        <Typography
-          display="inline"
-          placement="left-end"
-          style={{ marginRight: '0.5rem', marginTop: '0.75rem' }}
-        >
+      {/* Moved here from the (now removed) right-side legend panel, directly
+          above Topology, per professor feedback. */}
+      <div className="legend--featureRow">
+        <Typography>
+          Free Sequon:
+          <Typography display="inline" classes={{ root: 'bold-text' }}>
+            {sequons.length}
+          </Typography>
+        </Typography>
+        <div className="legend--symbolCell">
+          <div className={`button-visibility${showSequons ? '--on' : '--off'}`}>
+            <Tooltip title="toggle visibility" placement="right-end">
+              <IconButton
+                aria-label="delete"
+                size="small"
+                onClick={() => handleToggle('sequons')}
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+      <div className="legend--featureRow">
+        <Typography>
+          Free Cysteine:
+          <Typography display="inline" classes={{ root: 'bold-text' }}>
+            {cysteines.length}
+          </Typography>
+        </Typography>
+        <div className="legend--symbolCell">
+          <div className={`button-visibility${showCysteines ? '--on' : '--off'}`}>
+            <Tooltip title="toggle visibility" placement="right-end">
+              <IconButton
+                aria-label="delete"
+                size="small"
+                onClick={() => handleToggle('cysteines')}
+              >
+                <VisibilityIcon />
+              </IconButton>
+            </Tooltip>
+          </div>
+        </div>
+      </div>
+      {/* #RD END */}
+      {/* Topology reserves its own real row height for the label + both
+          badges - align-items: center (from .legend--menuItem) vertically
+          centers all three instead of needing manual marginTop nudges on
+          each child. */}
+      <div className="legend--menuItem">
+        <Typography display="inline" placement="left-end" style={{ marginRight: '0.5rem' }}>
           Topology:
         </Typography>
         <Button
@@ -459,7 +378,7 @@ function Legend(props) {
           variant="outlined"
           color="primary"
           size="small"
-          style={{ marginRight: '0.5rem', marginTop: '1rem', minWidth: '5px' }}
+          style={{ marginRight: '0.5rem', minWidth: '5px' }}
           onClick={() => handleToggle('outside')}
         >
           Out
@@ -469,23 +388,41 @@ function Legend(props) {
           variant="outlined"
           color="secondary"
           size="small"
-          style={{ marginTop: '1rem', minWidth: '5px' }}
+          style={{ minWidth: '5px' }}
           onClick={() => handleToggle('inside')}
         >
           In
         </Button>
+      </div>
+      {/* #RD START */}
+      {/* Moved here from the (now removed) right-side legend panel. Species
+          sits below Topology purely by DOM order + the panel's gap - no
+          special-cased "last row" margin needed. */}
+      <div className="legend--menuItem">
+        <Typography>
+          Protein Length:
+          <Typography display="inline" classes={{ root: 'bold-text' }}>
+            {length}
+          </Typography>
+        </Typography>
+      </div>
+      <div className="legend--menuItem">
+        <Typography>
+          Species:
+          <Typography display="inline" classes={{ root: 'bold-text' }}>
+            {species}
+          </Typography>
+        </Typography>
+      </div>
+      {/* #RD END */}
       </div>
     </TabPanel>
   );
 
   const symbolLeft = (
     <TabPanel value={tabValue} index={1}>
-      <div
-        className="legend--menuSymbol"
-        style={{
-          marginTop: '-23px'
-        }}
-      >
+      <div className="legend--panelContent">
+      <div className="legend--menuSymbol">
         <Typography>N-Glycan:</Typography>
         <div className="symbol">
           <svg
@@ -527,132 +464,6 @@ function Legend(props) {
         </div>
       </div>
       <div className="legend--menuSymbol">
-        <Typography>O-GalNAc:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="100"
-            height="20"
-            fill="none"
-          >
-            <rect
-              x="20"
-              y="3"
-              width="14"
-              height="14"
-              fill="yellow"
-              style={{ stroke: 'black' }}
-            />
-            <line x1="0" y1="10" x2="20" y2="10" style={{ stroke: 'black' }} />
-            <text x="40" y="16" fill="black" fontWeight="bold">
-              O
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>O-Glc:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="100"
-            height="20"
-            fill="none"
-          >
-            <circle
-              r="8"
-              cx="27"
-              cy="10"
-              fill="blue"
-              style={{ stroke: 'black' }}
-            />
-            <line x1="0" y1="10" x2="19" y2="10" style={{ stroke: 'black' }} />
-            <text x="40" y="16" fill="black" fontWeight="bold">
-              O
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>Glycation:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="100"
-            height="20"
-            fill="none"
-          >
-            <circle
-              r="8"
-              cx="27"
-              cy="10"
-              fill="blue"
-              style={{ stroke: 'black' }}
-            />
-            <line x1="0" y1="10" x2="19" y2="10" style={{ stroke: 'black' }} />
-            <text x="40" y="16" fill="black" fontWeight="bold">
-              N
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>PhosphoS:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="100"
-            height="20"
-            fill="none"
-          >
-            <circle r="10" cx="27" cy="10" fill="#FDCC04" />
-            <line x1="0" y1="10" x2="17" y2="10" style={{ stroke: 'black' }} />
-            <text x="23" y="16" fill="black" fontWeight="bold">
-              P
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>PhosphoT:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="100"
-            height="20"
-            fill="none"
-          >
-            <circle r="10" cx="27" cy="10" fill="#627DCC" />
-            <line x1="0" y1="10" x2="17" y2="10" style={{ stroke: 'black' }} />
-            <text x="23" y="16" fill="black" fontWeight="bold">
-              P
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>PhosphoY:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="100"
-            height="20"
-            fill="none"
-          >
-            <circle r="10" cx="27" cy="10" fill="#93E37F" />
-            <line x1="0" y1="10" x2="17" y2="10" style={{ stroke: 'black' }} />
-            <text x="23" y="16" fill="black" fontWeight="bold">
-              P
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div
-        className="legend--menuSymbol"
-        style={{
-          marginBottom: '-40px'
-        }}
-      >
         <Typography>Disulfides:</Typography>
         <div className="symbol">
           <svg
@@ -686,6 +497,44 @@ function Legend(props) {
             </text>
           </svg>
         </div>
+      </div>
+      {/* #RD START */}
+      {/* Moved here from the (now removed) right-side legend panel. */}
+      <div className="legend--menuSymbol">
+        <Typography>Free Sequon:</Typography>
+        <div className="symbol">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="80"
+            height="20"
+            fill="none"
+          >
+            <circle r="3" cx="5" cy="10" fill="black" stroke="white" />
+            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
+            <text x="45" y="16" fill="black" fontWeight="bold">
+              N
+            </text>
+          </svg>
+        </div>
+      </div>
+      <div className="legend--menuSymbol">
+        <Typography>Free Cysteine:</Typography>
+        <div className="symbol">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="80"
+            height="20"
+            fill="none"
+          >
+            <circle r="3" cx="5" cy="10" fill="white" stroke="black" />
+            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
+            <text x="45" y="16" fill="black" fontWeight="bold">
+              C
+            </text>
+          </svg>
+        </div>
+      </div>
+      {/* #RD END */}
       </div>
     </TabPanel>
   );
@@ -747,413 +596,53 @@ function Legend(props) {
     </Card>
   );
 
-  const infoRight = (
-    <TabPanel index={0} value={tabValue}>
-      <div className="legend--menuItem">
-        <Typography>
-          Free Sequon:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {sequons.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showSequons ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              // className={{ root: 'on' }}
-              onClick={() => handleToggle('sequons')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          Free Cysteine:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {cysteines.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showCysteines ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              // className={{ root: 'on' }}
-              onClick={() => handleToggle('cysteines')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      {/*
-      #RD OLD CODE
-      <div className="legend--menuItem">
-        <Typography>
-          Free S:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {free_s.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showFreeS ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              // className={{ root: 'on' }}
-              onClick={() => handleToggle('free_s')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          Free T:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {free_t.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showFreeT ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              // className={{ root: 'on' }}
-              onClick={() => handleToggle('free_t')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          Free K:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {free_k.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showFreeK ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              // className={{ root: 'on' }}
-              onClick={() => handleToggle('free_k')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      <div className="legend--menuItem">
-        <Typography>
-          Free W:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {free_w.length}
-          </Typography>
-        </Typography>
-        <div className={`button-visibility${showFreeW ? '--on' : '--off'}`}>
-          <Tooltip title="toggle visibility" placement="right-end">
-            <IconButton
-              aria-label="delete"
-              // className={{ root: 'on' }}
-              onClick={() => handleToggle('free_w')}
-            >
-              <VisibilityIcon />
-            </IconButton>
-          </Tooltip>
-        </div>
-      </div>
-      #RD END OLD CODE
-      */}
-      {/* #RD START */}
-      {/* legend--aminoAcidSection (not legend--menuItem) - this block wraps onto
-          multiple lines, and --menuItem's -23px margins (meant for single-line rows)
-          were squashing/overlapping it with the items above and below. */}
-      <div className="legend--aminoAcidSection">
-        <Typography>
-          Free Amino Acids (choose up to {MAX_SELECTED_AMINO_ACIDS}):
-        </Typography>
-        <div className="legend--aminoAcidGrid">
-          {/* #RD OLD CODE
-          {AMINO_ACIDS.map((aminoAcid) => {
-          #RD END OLD CODE */}
-          {/* #RD START */}
-          {/* Sort by free-count (desc) instead of AMINO_ACIDS' fixed alphabetical
-              order, so the most common free residues in this protein show first.
-              AMINO_ACIDS itself is left untouched (other code keys off it), this is
-              only a display-order copy built from the counts buildAminoAcids()
-              already computed in App.jsx. */}
-          {[...AMINO_ACIDS]
-            .sort((a, b) => {
-              const countA = aminoAcids[a] ? aminoAcids[a].free.length : 0;
-              const countB = aminoAcids[b] ? aminoAcids[b].free.length : 0;
-              return countB - countA;
-            })
-            .map((aminoAcid) => {
-            // #RD END
-            const isSelected = selectedAminoAcids.includes(aminoAcid);
-            const count =
-              aminoAcids[aminoAcid] ? aminoAcids[aminoAcid].free.length : 0;
-            const isDisabled =
-              !isSelected &&
-              selectedAminoAcids.length >= MAX_SELECTED_AMINO_ACIDS;
-            // #RD START
-            // Same slot-color assignment used by Visualization's connector lines,
-            // so the chip visually ties back to its line/marker on the protein.
-            const slotIndex = selectedAminoAcids.indexOf(aminoAcid);
-            const chipColor =
-              isSelected && slotIndex !== -1
-                ? SELECTED_AMINO_ACID_COLORS[
-                    slotIndex % SELECTED_AMINO_ACID_COLORS.length
-                  ]
-                : null;
-            // #RD END
-            return (
-              <Chip
-                key={aminoAcid}
-                label={`${aminoAcid} ${count}`}
-                size="small"
-                clickable
-                disabled={isDisabled}
-                // #RD OLD CODE
-                // color={isSelected ? 'primary' : 'default'}
-                // #RD END OLD CODE
-                // #RD START
-                // color="primary" (generic MUI blue) made every selected chip look
-                // the same; the slot color is now applied directly below instead,
-                // so unselected chips stay on the neutral 'default' MUI color.
-                color="default"
-                // #RD END
-                variant={isSelected ? 'default' : 'outlined'}
-                onClick={() => toggleAminoAcid(aminoAcid)}
-                className="legend--aminoAcidChip"
-                // #RD OLD CODE
-                // style={chipColor ? { borderLeft: `4px solid ${chipColor}` } : undefined}
-                // #RD END OLD CODE
-                // #RD START
-                // Full slot-color styling instead of just a left-border accent, so
-                // the chip itself reads as the same color as its connector line.
-                style={
-                  chipColor
-                    ? {
-                        backgroundColor: chipColor,
-                        color: '#ffffff',
-                        // MUI's filled Chip has no border by default (border-style:
-                        // none), so the shorthand is needed - `borderColor` alone
-                        // would have no visible effect.
-                        border: `1px solid ${darkenColor(chipColor)}`
-                      }
-                    : undefined
-                }
-                // #RD END
-              />
-            );
-          })}
-        </div>
-        {selectedAminoAcids.length >= MAX_SELECTED_AMINO_ACIDS ? (
-          <Typography variant="caption" style={{ color: '#cb2d39' }}>
-            Maximum of {MAX_SELECTED_AMINO_ACIDS} amino acids selected
-          </Typography>
-        ) : null}
-      </div>
-      {/* #RD END */}
-      <div className="legend--menuItem">
-        <Typography>
-          Protein Length:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {length}
-          </Typography>
-        </Typography>
-      </div>
-      <div
-        className="legend--menuItem"
-        style={{
-          marginTop: '23px',
-          marginBottom: '-40px'
-        }}
-      >
-        <Typography>
-          Species:
-          <Typography display="inline" classes={{ root: 'bold-text' }}>
-            {species}
-          </Typography>
-        </Typography>
-      </div>
-    </TabPanel>
+  // #RD START
+  // Combined amino-acid + modification selector, replacing the old
+  // "Free Amino Acids" section that used to live inside the (now removed)
+  // right-side "Legend and scientific symbols" panel, per professor feedback.
+  //
+  // selectedAminoAcidLetters mirrors the same filter Visualization/index.js
+  // applies before its own amino-acid rendering loop, so a chip's slot color
+  // here always matches the connector-line color actually drawn on the
+  // protein - it must be computed the same way in both places since a
+  // modification's presence/position in `selectedAminoAcids` must never shift
+  // an amino acid's own color slot.
+  const selectedAminoAcidLetters = selectedAminoAcids.filter((key) =>
+    AMINO_ACIDS.includes(key)
   );
 
-  const symbolRight = (
-    <TabPanel index={1} value={tabValue}>
-      <div
-        className="legend--menuSymbol"
-        style={{
-          marginTop: '-23px'
-        }}
-      >
-        <Typography>Free Sequon:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="80"
-            height="20"
-            fill="none"
-          >
-            <circle r="3" cx="5" cy="10" fill="black" stroke="white" />
-            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-            <text x="45" y="16" fill="black" fontWeight="bold">
-              N
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>Free Cysteine:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="80"
-            height="20"
-            fill="none"
-          >
-            <circle r="3" cx="5" cy="10" fill="white" stroke="black" />
-            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-            <text x="45" y="16" fill="black" fontWeight="bold">
-              C
-            </text>
-          </svg>
-        </div>
-      </div>
-      {/*
-      #RD OLD CODE
-      <div className="legend--menuSymbol">
-        <Typography>Free S:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="80"
-            height="20"
-            fill="none"
-          >
-            <circle r="3" cx="5" cy="10" fill="black" stroke="white" />
-            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-            <text x="45" y="16" fill="black" fontWeight="bold">
-              S
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div
-        className="legend--menuSymbol"
-      >
-        <Typography>Free T:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="80"
-            height="20"
-            fill="none"
-          >
-            <circle r="3" cx="5" cy="10" fill="black" stroke="white" />
-            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-            <text x="45" y="16" fill="black" fontWeight="bold">
-              T
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div className="legend--menuSymbol">
-        <Typography>Free K:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="80"
-            height="20"
-            fill="none"
-          >
-            <circle r="3" cx="5" cy="10" fill="white" stroke="black" />
-            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-            <text x="45" y="16" fill="black" fontWeight="bold">
-              K
-            </text>
-          </svg>
-        </div>
-      </div>
-      <div
-        className="legend--menuSymbol"
-        style={{
-          marginBottom: '-40px'
-        }}
-      >
-        <Typography>Free W:</Typography>
-        <div className="symbol">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="80"
-            height="20"
-            fill="none"
-          >
-            <circle r="3" cx="5" cy="10" fill="white" stroke="black" />
-            <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-            <text x="45" y="16" fill="black" fontWeight="bold">
-              W
-            </text>
-          </svg>
-        </div>
-      </div>
-      #RD END OLD CODE
-      */}
-      {/* #RD START */}
-      {selectedAminoAcids.length === 0 ? (
-        <div className="legend--menuSymbol">
-          <Typography variant="body2">
-            Select amino acids on the Protein Features tab to see their
-            symbol here.
-          </Typography>
-        </div>
-      ) : (
-        selectedAminoAcids.map((aminoAcid, idx) => {
-          const style =
-            AMINO_ACID_RENDER_STYLE[aminoAcid] || DEFAULT_AMINO_ACID_RENDER_STYLE;
-          const isSolid = style.visualize === 'solid';
-          const isLast = idx === selectedAminoAcids.length - 1;
-          return (
-            <div
-              className="legend--menuSymbol"
-              key={aminoAcid}
-              style={isLast ? { marginBottom: '-40px' } : {}}
-            >
-              <Typography>Free {aminoAcid}:</Typography>
-              <div className="symbol">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="80"
-                  height="20"
-                  fill="none"
-                >
-                  <circle
-                    r="3"
-                    cx="5"
-                    cy="10"
-                    fill={isSolid ? 'black' : 'white'}
-                    stroke={isSolid ? 'white' : 'black'}
-                  />
-                  <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
-                  <text x="45" y="16" fill="black" fontWeight="bold">
-                    {aminoAcid}
-                  </text>
-                </svg>
-              </div>
-            </div>
-          );
-        })
-      )}
-      {/* #RD END */}
-    </TabPanel>
-  );
+  // modificationDataByKey's keys intentionally match MODIFICATION_OPTIONS'
+  // `key` values (and the existing per-protein data prop names), so a
+  // modification's count can be looked up generically instead of a manual
+  // per-type switch.
+  const modificationDataByKey = {
+    o_glcnac,
+    o_glc,
+    glycation,
+    phosphoserine,
+    phosphothreonine,
+    phosphotyrosine
+  };
 
-  const legendRight = (
+  // Sort by count (desc) same as the amino-acid-only grid used to, now across
+  // both amino acids and modifications together, so the most common items in
+  // this protein show first regardless of which kind they are.
+  const selectableItems = [
+    ...AMINO_ACIDS.map((aminoAcid) => ({
+      key: aminoAcid,
+      label: aminoAcid,
+      count: aminoAcids[aminoAcid] ? aminoAcids[aminoAcid].free.length : 0,
+      isAminoAcid: true
+    })),
+    ...MODIFICATION_OPTIONS.map((mod) => ({
+      key: mod.key,
+      label: mod.label,
+      count: (modificationDataByKey[mod.key] || []).length,
+      isAminoAcid: false
+    }))
+  ].sort((a, b) => b.count - a.count);
+
+  const aminoAcidsAndModsPanel = (
     <Card
       variant="outlined"
       raised
@@ -1162,46 +651,84 @@ function Legend(props) {
       }}
     >
       <CardContent>
-        <div className="legend--header">
-          <Typography
-            className={classes.title}
-            color="textSecondary"
-            gutterBottom
-            display="inline"
-          >
-            Legend
+        {/* #RD START */}
+        {/* "Amino acids and mods (choose up to N):" is too long to fit on
+            one line at classes.title's size within this panel's width
+            without shrinking the font to the point of being hard to read.
+            Split into a heading ("Amino acids and mods", which DOES fit on
+            one line and still uses classes.title directly - unchanged, so it
+            still matches the left "Legend" heading exactly) plus a smaller
+            subtitle line for the parenthetical count, so the break reads as
+            an intentional title/subtitle pair instead of an awkward
+            mid-sentence wrap. */}
+        <div className="legend--panelTitle">
+          <Typography className={classes.title} color="textSecondary">
+            Amino acids and mods
+          </Typography>
+          <Typography className="legend--panelSubtitle">
+            (choose up to {MAX_SELECTED_AMINO_ACIDS}):
           </Typography>
         </div>
-        <Paper className={classes.tabs}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            variant="scrollable"
-            scrollButtons="auto"
-            aria-label="simple tabs example"
-          >
-            <Tab
-              classes={{ root: classes.tab }}
-              label="Protein Features"
-              {...a11yProps(0)}
-            />
-            <Tab
-              classes={{ root: classes.tab }}
-              label="Scientific Symbol"
-              {...a11yProps(1)}
-            />
-          </Tabs>
-        </Paper>
-        {infoRight}
-        {symbolRight}
+        {/* #RD END */}
+        <div className="legend--aminoAcidGrid">
+          {selectableItems.map((item) => {
+            const isSelected = selectedAminoAcids.includes(item.key);
+            const isDisabled =
+              !isSelected &&
+              selectedAminoAcids.length >= MAX_SELECTED_AMINO_ACIDS;
+            // Slot color only applies to amino-acid letters - modifications
+            // render with their own fixed colors on the protein diagram (see
+            // attachOGalNAcBonds/attachPhosphorylation/etc. in
+            // Visualization/index.js), so giving a modification chip a
+            // rainbow slot color would falsely imply a color link that
+            // doesn't exist.
+            const slotIndex = item.isAminoAcid
+              ? selectedAminoAcidLetters.indexOf(item.key)
+              : -1;
+            const chipColor =
+              item.isAminoAcid && isSelected && slotIndex !== -1
+                ? SELECTED_AMINO_ACID_COLORS[
+                    slotIndex % SELECTED_AMINO_ACID_COLORS.length
+                  ]
+                : null;
+            return (
+              <Chip
+                key={item.key}
+                label={`${item.label} ${item.count}`}
+                size="small"
+                clickable
+                disabled={isDisabled}
+                color={!item.isAminoAcid && isSelected ? 'primary' : 'default'}
+                variant={isSelected ? 'default' : 'outlined'}
+                onClick={() => toggleAminoAcid(item.key)}
+                className="legend--aminoAcidChip"
+                style={
+                  chipColor
+                    ? {
+                        backgroundColor: chipColor,
+                        color: '#ffffff',
+                        border: `1px solid ${darkenColor(chipColor)}`
+                      }
+                    : undefined
+                }
+              />
+            );
+          })}
+        </div>
+        {selectedAminoAcids.length >= MAX_SELECTED_AMINO_ACIDS ? (
+          <Typography variant="caption" style={{ color: '#cb2d39' }}>
+            Maximum of {MAX_SELECTED_AMINO_ACIDS} items selected
+          </Typography>
+        ) : null}
       </CardContent>
     </Card>
   );
+  // #RD END
 
   return (
     <div>
       {legendLeft}
-      {legendRight}
+      {aminoAcidsAndModsPanel}
     </div>
   );
 }
@@ -1228,13 +755,7 @@ Legend.propTypes = {
   selectedAminoAcids: PropTypes.arrayOf(PropTypes.string),
   toggleAminoAcid: PropTypes.func,
   // #RD END
-  toggleOGalNAc: PropTypes.func,
   toggleGlyco: PropTypes.func,
-  toggleOGlc: PropTypes.func,
-  toggleGlycation: PropTypes.func,
-  togglePhosphoserine: PropTypes.func,
-  togglePhosphothreonine: PropTypes.func,
-  togglePhosphotyrosine: PropTypes.func,
   toggleSulfide: PropTypes.func,
   toggleOutside: PropTypes.func,
   toggleInside: PropTypes.func,
@@ -1252,12 +773,6 @@ Legend.propTypes = {
 
 Legend.defaultProps = {
   toggleGlyco: () => {},
-  toggleOGalNAc: () => {},
-  toggleOGlc: () => {},
-  toggleGlycation: () => {},
-  togglePhosphoserine: () => {},
-  togglePhosphothreonine: () => {},
-  togglePhosphotyrosine: () => {},
   toggleSulfide: () => {},
   toggleOutside: () => {},
   toggleInside: () => {},
