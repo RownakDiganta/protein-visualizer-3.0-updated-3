@@ -107,7 +107,11 @@ const useStyles = makeStyles({
     textDecoration: 'none',
     color: '#cb2d39',
     fontWeight: 'bold',
-    marginBottom: '15px'
+    // #RD START
+    // Tightened from 15px, per professor feedback to reduce the left panel's
+    // spacing - still a clear gap under the heading, just not as much of one.
+    marginBottom: '8px'
+    // #RD END
   },
   pos: {
     marginBottom: 12
@@ -116,7 +120,9 @@ const useStyles = makeStyles({
     flexGrow: 1,
     backgroundColor: '#f8f8ff',
     width: '100%',
-    marginBottom: '15px'
+    // #RD START
+    marginBottom: '8px'
+    // #RD END
   },
   tab: {
     minWidth: 100,

@@ -31,7 +31,19 @@
   }
 
   &-searchbar {
-    margin-top: 12vh;
+    // #RD START
+    // Was 12vh (viewport-relative) - on anything taller than a small laptop
+    // screen that's well over 100px of pure empty space before the search
+    // bar even renders, and everything below it (including the protein
+    // visualization, which sits in the same flex column right after this)
+    // was pushed down by the same amount. The <AppBar> below is MUI's
+    // default position="fixed", so this margin's real job is just clearing
+    // its Toolbar (min-height 56px mobile / 64px desktop) - 80px is a fixed
+    // amount that comfortably clears either breakpoint with a little
+    // breathing room, instead of a viewport-percentage figure disconnected
+    // from the actual (fixed-size) element it needs to clear.
+    margin-top: 80px;
+    // #RD END
     float: left;
   }
 

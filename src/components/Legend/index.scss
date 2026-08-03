@@ -72,6 +72,26 @@
   }
 
   // #RD START
+  // Scoped ONLY to the left "Legend" card (not the right "Amino acids and
+  // mods" panel) per professor feedback to specifically reduce the LEFT
+  // panel's spacing. MUI's CardContent defaults to 16px padding on every
+  // side, PLUS a `:last-child` rule that bumps bottom padding to 24px - that
+  // last-child padding was the single largest source of avoidable height
+  // here now that the panel's own content is otherwise tight (a real,
+  // non-hard-coded card margin, not a magic-number hack: MUI's own default
+  // is being reduced, not padding invented from nothing).
+  &--wrapper,
+  &--wrapperTransparent {
+    .MuiCardContent-root {
+      padding: 10px 12px;
+      &:last-child {
+        padding-bottom: 10px;
+      }
+    }
+  }
+  // #RD END
+
+  // #RD START
   // Each row is a normal-flow flex row (label + icon/badges); vertical spacing
   // BETWEEN rows comes entirely from the parent --panelContent's `gap` (see
   // below), not from margins on the rows themselves - this replaces the old
@@ -87,12 +107,19 @@
   // relying on its own content to happen to look the same size. min-height
   // (not a fixed height) so rows with taller content, like Topology's
   // buttons, are never clipped.
+  //
+  // #RD START
+  // Tightened from padding: 4px 0 / min-height: 32px per professor feedback
+  // ("reduce the spacing of the left panel") - 28px min-height is still
+  // comfortably taller than the small (24px) icon/text content each row
+  // holds, so nothing gets cramped, it's just less dead air above/below it.
   &--menuItem,
   &--featureRow {
-    padding: 4px 0;
-    min-height: 32px;
+    padding: 2px 0;
+    min-height: 28px;
     box-sizing: border-box;
   }
+  // #RD END
 
   &--menuItem {
     display: flex;
@@ -200,11 +227,13 @@
   // Wraps each tab panel's rows (see infoLeft/symbolLeft in Legend/index.js).
   // Normal block/flex flow - the container's height always grows to fit
   // however many rows it holds, so it can never render shorter than its
-  // actual content.
+  // actual content. Gap tightened from 10px to 6px (row spacing, per
+  // professor feedback) - still a clear, visible break between rows, just
+  // not as much dead space between them.
   &--panelContent {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   }
   // #RD END
 
