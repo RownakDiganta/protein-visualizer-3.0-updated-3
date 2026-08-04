@@ -1,12 +1,38 @@
 // src/components/Visualization/index.scss
 // Text/label styling for disulfide and glycosylation annotations, plus
 // layout for the main SVG wrapper and the offscreen window-view SVG.
+
+// #RD START
+// Every letter+position-number label (disulfide/free-cysteine "C", glyco/
+// sequon "N"/"O", and selected amino-acid letters) previously had no explicit
+// font-family, so it fell back to the page's inherited system font stack
+// (-apple-system, BlinkMacSystemFont, 'Segoe UI', ... - see index.css). That
+// stack is meaningless outside an actual browser: Canvg (the SVG-to-canvas
+// rasterizer behind "Export Full Protein as Image"/PNG) can't resolve any of
+// those OS-specific font tokens and silently substitutes its own default,
+// which measured visibly WIDER than the browser's rendering for the same
+// text - confirmed by comparing the live DOM's letter/number bounding boxes
+// (near-zero gap) against the actual exported PNG (a clearly visible gap) for
+// the same dx-based coordinates. That font mismatch, not the coordinates
+// themselves, was the real reason the exported number sat farther from its
+// letter than it did on screen. A single explicit, universally-available font
+// stack fixes this at the root for every export path (PNG via Canvg, PDF via
+// html2canvas, and the raw downloaded SVG) simultaneously, since all three
+// serialize/rasterize this exact same live SVG (see captureFullImage/
+// captureScreenshot/captureFullSVG in App.jsx) - no separate export-mode
+// value is needed here, because the mismatch was never really about the
+// coordinates, it was about which font each renderer picked for them.
+$label-font-family: Arial, Helvetica, sans-serif;
+// #RD END
+
 .sulfide-labels {
   font-size: 1.0rem;
   font-weight: bold;
+  font-family: $label-font-family;
   &--pos {
     font-size: 0.75rem;
     font-weight: bold;
+    font-family: $label-font-family;
   }
 }
 
@@ -20,6 +46,7 @@
 .amino-acid-label {
   font-size: 1.0rem;
   font-weight: bold;
+  font-family: $label-font-family;
   paint-order: stroke;
   stroke: white;
   stroke-width: 3px;
@@ -27,6 +54,7 @@
   &--pos {
     font-size: 0.75rem;
     font-weight: bold;
+    font-family: $label-font-family;
     paint-order: stroke;
     stroke: white;
     stroke-width: 3px;
@@ -38,20 +66,48 @@
 .glyco-labels {
   font-size: 1.0rem;
   font-weight: bold;
-  color: white; 
+  font-family: $label-font-family;
+  color: white;
   &--pos {
     font-size: 0.75rem;
     font-weight: bold;
+    font-family: $label-font-family;
     color: white;
   }
 }
 
+// #RD START
+// Was `position: relative; top: -100px; z-index: -1000;` - a hack that
+// pulled the window SVG up and behind everything else, paired with
+// ProteinWindow's own `.window--wrapper { top: 100px; }` (see
+// ProteinWindow/index.scss) so the two would visually meet in the middle.
+// That 200px combined pull was tuned for a window SVG tall enough (the old,
+// near-viewport-height default) that it never actually reached the input
+// panel above it. Once the SVG's base height was capped to a sane value
+// (see VISUALIZATION_HEIGHT_CAP in App.jsx), the same fixed pull started
+// dragging the window SVG's own label region up underneath the input panel,
+// hiding labels behind it (z-index: -1000). Normal flow inside
+// .window-section (see Visualization/index.js) replaces both hacks -
+// .windowSvg--wrapper now only needs to size itself to its content.
 .windowSvg--wrapper {
-  position: relative;
-  top: -100px;
-  z-index: -1000;
-  // display: inl;
+  display: block;
+  width: 100%;
 }
+
+// Wraps the Protein Window Input panel and the window SVG together, in
+// normal document flow, directly below the full-length view - see
+// Visualization/index.js. margin-top is the "moderate" gap from the
+// full-length diagram above; gap is the "small" gap between the input panel
+// and the window visualization itself.
+.window-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: 24px;
+  gap: 12px;
+}
+// #RD END
 
 .svg-wrapper{
   display: flex;

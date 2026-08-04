@@ -170,11 +170,98 @@ function Visualization(props) {
   const GLYCO_STEM_LENGTH = 60;
   const GLYCO_LINK_LENGTH = 10;
   const SPINE_START_POS = 30;
-  const WINDOW_SPINE_START_POS = 0.1 * margin.left;
 
-  const SPINE_WIDTH = scaledWidth - scaleFactor * 2 * margin.left;
+  // #RD START
+  // Reserves horizontal space, for the FULL-LENGTH view only, matching the
+  // fixed-position Legend (left) and "Amino acids and mods" (right) panels -
+  // see .legend--wrapper (left: 10px, width: 250px) and .legend--wrapperRight
+  // (right: 10px, width: 300px) in Legend/index.scss. Those panels are
+  // position: fixed, so they're painted in the same viewport-relative layer
+  // regardless of where the diagram sits in normal document flow; moving the
+  // diagram higher up the page (see VISUALIZATION_HEIGHT_CAP in App.jsx) put
+  // it in the exact vertical band the panels already occupied. The diagram's
+  // old left/right breathing room (margin.left, ~10% of viewport width, used
+  // on BOTH sides) was never actually tied to the panels' real footprint -
+  // measuring confirmed the drawing group's own origin (translateX) landed
+  // well inside the Legend panel's right edge, so residue labels, connector
+  // lines, and even the NH2 terminus label rendered underneath it, and the
+  // COOH terminus label rendered underneath the right panel.
+  //
+  // Values below are kept in sync by hand with Legend/index.scss's panel
+  // widths (SCSS and this JS module can't literally share one constant) plus
+  // a gap wide enough for this view's own edge content (the NH2 label
+  // extends further left of the spine's start, the COOH label extends
+  // further right of the spine's end) - confirmed with real on-screen
+  // measurements, not just the panels' bare CSS widths.
+  const LEFT_PANEL_RESERVED_WIDTH = 320; // legend--wrapper: 10 + 250, + ~60px gap for the NH2 label
+  const RIGHT_PANEL_RESERVED_WIDTH = 430; // legend--wrapperRight: 10 + 300, + ~120px gap for the COOH label
+  // #RD END
 
-  const WINDOW_SPINE_WIDTH = initialWidth - 2 * margin.left;
+  // #RD START
+  // Below some viewport width, LEFT_PANEL_RESERVED_WIDTH + RIGHT_PANEL_RESERVED_WIDTH
+  // (750px combined) no longer fits, which drove SPINE_WIDTH negative at a 700px-wide
+  // viewport - confirmed by measurement. A negative width doesn't just shrink the
+  // diagram, it flips the residue-position scale's direction, so labels render out of
+  // sequence order and pile on top of each other (a real rendering bug, distinct from
+  // "cramped but correct"). The *_PANEL_MIN_RESERVED_WIDTH values below are the bare
+  // minimum that still clears the panel itself plus the terminus label's own bleed
+  // past the spine (measured empirically, same as the ideal values above) - the only
+  // thing the ideal values add on top is a few px of pure breathing room, which is
+  // what gets dropped first as the viewport narrows. MIN_SPINE_WIDTH is a last-resort
+  // floor for the (very narrow, below-any-panel-fit) case where even the bare-minimum
+  // reservation leaves no room - it trades a visually tiny diagram for never
+  // re-inverting or overlapping either panel.
+  const LEFT_PANEL_MIN_RESERVED_WIDTH = 285;
+  const RIGHT_PANEL_MIN_RESERVED_WIDTH = 375;
+  const MIN_SPINE_WIDTH = 30;
+  const idealAvailableWidth =
+    scaledWidth -
+    scaleFactor * (LEFT_PANEL_RESERVED_WIDTH + RIGHT_PANEL_RESERVED_WIDTH);
+  const isReservationTight = idealAvailableWidth < MIN_SPINE_WIDTH;
+  const EFFECTIVE_LEFT_RESERVED_WIDTH = isReservationTight
+    ? LEFT_PANEL_MIN_RESERVED_WIDTH
+    : LEFT_PANEL_RESERVED_WIDTH;
+  const EFFECTIVE_RIGHT_RESERVED_WIDTH = isReservationTight
+    ? RIGHT_PANEL_MIN_RESERVED_WIDTH
+    : RIGHT_PANEL_RESERVED_WIDTH;
+  // #RD END
+
+  const SPINE_WIDTH = Math.max(
+    MIN_SPINE_WIDTH,
+    scaledWidth -
+      scaleFactor *
+        (EFFECTIVE_LEFT_RESERVED_WIDTH + EFFECTIVE_RIGHT_RESERVED_WIDTH)
+  );
+
+  // #RD START
+  // Window view gets its OWN (much smaller) side margin instead of reusing
+  // the full-length view's margin.left (10% of width, reserved there mostly
+  // for the "NH2 --"/"-- COOH" terminus labels). The window view never draws
+  // those labels (see the `!isWindowView` guard around
+  // attachNTerminus/attachCTerminus below), so reusing that same wide margin
+  // was pure unused space - this was reported as "the lower visualization
+  // uses far less of the available width than the full-length one," and
+  // measuring confirmed the window protein bar previously stopped at ~81% of
+  // the SVG's width with nothing drawn in the remaining ~19%.
+  //
+  // The window view's whole drawing group is already shifted right by
+  // WINDOW_VIEW_TRANSLATE_X (see translateX in renderVisualization below) -
+  // that offset must be subtracted from the width budget here, or content
+  // sized against the full initialWidth overflows past the SVG's own right
+  // edge. That overflow is invisible in the browser (the SVG has
+  // overflow="visible", so it just bleeds past the element's box) but is
+  // genuinely clipped in PNG/PDF exports, which render only the SVG's
+  // declared width/height - confirmed by measuring the live DOM before this
+  // fix (a domain rect's rendered right edge landed ~65px past the SVG's
+  // own 1400px-wide bounding box).
+  const WINDOW_VIEW_TRANSLATE_X = initialWidth / 15;
+  const WINDOW_SPINE_MARGIN_RATIO = 0.02;
+  const WINDOW_SPINE_START_POS = initialWidth * WINDOW_SPINE_MARGIN_RATIO;
+  const WINDOW_SPINE_WIDTH =
+    initialWidth -
+    WINDOW_VIEW_TRANSLATE_X -
+    2 * initialWidth * WINDOW_SPINE_MARGIN_RATIO;
+  // #RD END
 
   // #RD START
   // Builds ONE shared label layout per side (above/below the spine) across ALL
@@ -1274,7 +1361,9 @@ function Visualization(props) {
     const svg = select(id);
     svg.style('background-color', 'white');
 
-    const translateX = isWindowView ? initialWidth / 15 : margin.left;
+    const translateX = isWindowView
+      ? initialWidth / 15
+      : EFFECTIVE_LEFT_RESERVED_WIDTH;
     // #RD OLD CODE
     // const translateY = isWindowView ? initialWidth / 15 : margin.top;
     // #RD END OLD CODE
@@ -1529,12 +1618,26 @@ function Visualization(props) {
         />
       ) : null}
       {svg}
-      <ProteinWindow
-        length={proteinLength}
-        updateWindowStart={updateWindowStart}
-        updateWindowEnd={updateWindowEnd}
-      />
-      {windowSvg}
+      {/* #RD START */}
+      {/* Normal document flow, not the old position:relative top:-100px /
+          top:100px pair (see the removed rules in Visualization/index.scss
+          and ProteinWindow/index.scss) that used to pull the input panel down
+          and the window SVG up so they'd meet - that hack was tuned for a
+          much taller window SVG; once the SVG's height shrank (see
+          VISUALIZATION_HEIGHT_CAP in App.jsx), the same fixed 200px pull
+          started overlapping the input panel on top of the window view's own
+          labels. .window-section's own margin/gap now provide the spacing
+          instead, sized to the actual rendered content rather than a fixed
+          offset tuned for a since-changed height. */}
+      <div className="window-section">
+        <ProteinWindow
+          length={proteinLength}
+          updateWindowStart={updateWindowStart}
+          updateWindowEnd={updateWindowEnd}
+        />
+        {windowSvg}
+      </div>
+      {/* #RD END */}
     </div>
   );
 }

@@ -1,13 +1,18 @@
 // src/components/Visualization/ProteinWindow/index.scss
 // Positioning and color styles for the protein window input card and its toggle buttons.
 .window {
+  // #RD START
+  // Was `position: relative; top: 100px;` - paired with .windowSvg--wrapper's
+  // `top: -100px` (see Visualization/index.scss) to pull the input panel and
+  // the window SVG toward each other by a fixed 200px combined. That hack is
+  // gone; this panel now sits in normal flow as the first child of
+  // .window-section, which supplies the actual spacing.
   &--wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    top: 100px;
   }
+  // #RD END
 
   &--display {
     width: 250px;

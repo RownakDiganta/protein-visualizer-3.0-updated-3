@@ -24,6 +24,24 @@ const { AMINO_ACIDS } = constants;
 const { getProteins } = parser;
 // one-time command to setup and activate the virtual environemnt script: ./venv/Scripts/activate
 const { innerWidth, innerHeight } = window;
+// #RD START
+// The Visualization component centers the protein spine at roughly half of
+// whatever `height` it's given (see SULFIDE_POS = innerHeight/2 + ... in
+// Visualization/index.js), and sizes its own <svg> to that same `height`.
+// Passing the FULL browser viewport height (often 800-1200px+) here meant
+// the spine - and everything drawn relative to it - rendered several hundred
+// pixels down from the top of the SVG, which is what actually pushed the
+// whole protein diagram down the page; no amount of trimming margins above
+// it (search bar, Legend panel) could ever compensate for that, since those
+// are page-level spacing and this is the SVG's own internal coordinate
+// space. Visualization's own default prop for `height` (500, see its
+// defaultProps) already establishes what this component considers a normal,
+// non-viewport-scaled size - VISUALIZATION_HEIGHT caps at a similar, more
+// generous value instead of the raw viewport height, while still shrinking
+// further on genuinely short viewports so nothing gets clipped there.
+const VISUALIZATION_HEIGHT_CAP = 600;
+const visualizationHeight = Math.min(innerHeight, VISUALIZATION_HEIGHT_CAP);
+// #RD END
 
 function App() {
   const ToCaptureRef = React.useRef();
@@ -633,7 +651,7 @@ function App() {
           <div className="html2canvas-container" ref={ToCaptureRef}>
             <Visualization
               width={innerWidth}
-              height={innerHeight}
+              height={visualizationHeight}
               currSelection={currSelection}
               isLegendOpen={isLegendOpen}
               initialOptions={proteinOpts}
