@@ -478,20 +478,27 @@ function Legend(props) {
             height="20"
             fill="none"
           >
+            {/* #RD START */}
+            {/* Matches the diagram's own disulfide-marker treatment (see
+                RESIDUE_MARKER_STROKE in Visualization/index.js) - a thin,
+                subtle dark stroke instead of the white ring/halo the
+                professor asked to have removed, so this legend key still
+                looks like the marker it represents. */}
             <circle
               r="5"
               cx="20"
               cy="6"
               fill="#C76861"
-              style={{ stroke: 'white' }}
+              style={{ stroke: 'rgba(0, 0, 0, 0.35)', strokeWidth: 1 }}
             />
             <circle
               r="5"
               cx="60"
               cy="6"
               fill="#C76861"
-              style={{ stroke: 'white' }}
+              style={{ stroke: 'rgba(0, 0, 0, 0.35)', strokeWidth: 1 }}
             />
+            {/* #RD END */}
             <line x1="20" y1="18" x2="60" y2="18" style={{ stroke: 'black' }} />
             <line x1="20" y1="18" x2="20" y2="11" style={{ stroke: 'black' }} />
             <text x="5" y="18" fill="black" fontWeight="bold" fontSize="small">
@@ -515,7 +522,12 @@ function Legend(props) {
             height="20"
             fill="none"
           >
-            <circle r="3" cx="5" cy="10" fill="black" stroke="white" />
+            {/* #RD START */}
+            {/* Matches the diagram's own free-sequon marker (see
+                Visualization/index.js) - no stroke, since a solid black
+                fill needs no extra border to stay visible. */}
+            <circle r="3" cx="5" cy="10" fill="black" stroke="none" />
+            {/* #RD END */}
             <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
             <text x="45" y="16" fill="black" fontWeight="bold">
               N

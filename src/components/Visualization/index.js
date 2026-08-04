@@ -27,6 +27,24 @@ import './index.scss';
 
 const CIRCLE_RADIUS = 5;
 const SPINE_HEIGHT = 30;
+// #RD START
+// Residue-marker circles (disulfide/free-cysteine-pair atoms, the amino-acid
+// "solid" style marker) used a flat `stroke: white` for definition against
+// the spine's own fill - per professor feedback ("remove the white line
+// around the sign"), that read as an unwanted white ring/halo, most visible
+// where a marker's fill color sits close in hue/lightness to the spine
+// segment under it (e.g. a pink/magenta palette entry on the pink "outside
+// domain" spine). A flat, low-opacity dark stroke gives the same
+// pixel-level edge definition (so a marker's boundary is still crisp against
+// any of the spine's fill colors - white, pink, or purple/blue) without ever
+// reading as a distinct white ring; it's deliberately thin (1px) so it never
+// becomes a second thick outline of its own. This is NOT used on markers
+// that are already black-filled (e.g. the free-sequon marker) - a solid
+// black fill needs no extra border to stay visible on any background, so
+// those markers now render with no stroke at all.
+const RESIDUE_MARKER_STROKE = 'rgba(0, 0, 0, 0.35)';
+const RESIDUE_MARKER_STROKE_WIDTH = 1;
+// #RD END
 
 const { COLOR_PALLETE } = constants;
 // #RD START
@@ -819,7 +837,8 @@ function Visualization(props) {
           .attr('cx', bondPos)
           .attr('cy', SULFIDE_POS)
           .attr('r', CIRCLE_RADIUS)
-          .style('stroke', 'white')
+          .style('stroke', RESIDUE_MARKER_STROKE)
+          .style('stroke-width', RESIDUE_MARKER_STROKE_WIDTH)
           .style('fill', COLOR_PALLETE[idx % COLOR_PALLETE.length]);
 
         // attach stem
@@ -877,7 +896,8 @@ function Visualization(props) {
           .attr('cx', bondPos)
           .attr('cy', SULFIDE_POS)
           .attr('r', CIRCLE_RADIUS)
-          .style('stroke', 'white')
+          .style('stroke', RESIDUE_MARKER_STROKE)
+          .style('stroke-width', RESIDUE_MARKER_STROKE_WIDTH)
           .style('fill', COLOR_PALLETE[idx % COLOR_PALLETE.length]);
 
         // attach stem
@@ -935,7 +955,8 @@ function Visualization(props) {
           .attr('cx', xPos)
           .attr('cy', SULFIDE_POS)
           .attr('r', CIRCLE_RADIUS)
-          .style('stroke', 'white')
+          .style('stroke', RESIDUE_MARKER_STROKE)
+          .style('stroke-width', RESIDUE_MARKER_STROKE_WIDTH)
           .style('fill', COLOR_PALLETE[idx % COLOR_PALLETE.length]);
 
         const atom2 = g.append('circle');
@@ -943,7 +964,8 @@ function Visualization(props) {
           .attr('cx', yPos)
           .attr('cy', SULFIDE_POS)
           .attr('r', CIRCLE_RADIUS)
-          .style('stroke', 'white')
+          .style('stroke', RESIDUE_MARKER_STROKE)
+          .style('stroke-width', RESIDUE_MARKER_STROKE_WIDTH)
           .style('fill', COLOR_PALLETE[idx % COLOR_PALLETE.length]);
 
         const bond = g.append('line');
@@ -1179,7 +1201,7 @@ function Visualization(props) {
         .attr('cx', seqPos)
         .attr('cy', SULFIDE_POS)
         .attr('r', CIRCLE_RADIUS - 2)
-        .style('stroke', 'white')
+        .style('stroke', 'none')
         .style('fill', 'black');
       //COLOR_PALLETE[idx % COLOR_PALLETE.length]
     });
@@ -1240,7 +1262,8 @@ function Visualization(props) {
           .attr('cx', x)
           .attr('cy', SULFIDE_POS)
           .attr('r', CIRCLE_RADIUS - 2)
-          .style('stroke', 'white')
+          .style('stroke', RESIDUE_MARKER_STROKE)
+          .style('stroke-width', RESIDUE_MARKER_STROKE_WIDTH)
           .style('fill', color || 'black');
       } else {
         bond

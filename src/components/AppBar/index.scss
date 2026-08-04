@@ -5,9 +5,43 @@
 }
 
 .wide-menu {
-  min-width: 400px;
+  min-width: 320px;
 }
 
-.menuItem--large {
-  min-height: 100px;
+// #RD START
+// Replaces .menuItem--large (a flat min-height: 100px with no horizontal
+// padding, so the slider's track ran edge-to-edge to the menu's own border -
+// per feedback that the zoom control needed better positioning/alignment).
+// Title, current-value readout, and the slider itself now stack in one
+// centered column with real breathing room on every side and consistent
+// gaps between them, so nothing floats against the menu's edge.
+.zoom-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 28px 18px;
+  box-sizing: border-box;
+
+  // MUI's Slider defaults to display: inline-block/inline-flex sizing off
+  // its content - width: 100% (of the padded column above) so the track
+  // spans the available space evenly instead of shrinking to an arbitrary
+  // intrinsic width.
+  &--slider {
+    width: 100%;
+  }
+
+  &--title {
+    margin: 0;
+  }
+
+  // Same red used for the Legend's own headings/section title, so the
+  // current-zoom readout reads as a deliberate accent, not stray text.
+  &--value {
+    font-weight: bold;
+    color: #cb2d39;
+  }
 }
+// #RD END
