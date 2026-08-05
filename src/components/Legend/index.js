@@ -268,21 +268,17 @@ function Legend(props) {
           sections are added. */}
       <div className="legend--panelContent">
       {/* #RD START */}
-      {/* legend--featureRow: shared 2-column grid (label+count | eye icon) so
-          all four rows' icons share one exact horizontal position regardless
-          of label length - see .legend--featureRow/.legend--symbolCell. The
-          header row below shares that exact same grid AND the exact same
-          .legend--symbolCell (left-aligned) as the icon rows, so its label's
-          left edge lines up with the eye icons' actual left edge, not just
-          with the column boundary. */}
-      <div className="legend--featureRow legend--featureHeader">
-        <div />
-        <div className="legend--symbolCell">
-          <Typography className="legend--symbolHeaderLabel">
-            Scientific Symbol
-          </Typography>
-        </div>
-      </div>
+      {/* legend--featureRow: a single plain flex row per feature - label+count
+          Typography followed directly by its eye-icon wrapper, left-aligned
+          with a small gap between them. The eye icon is NOT aligned into a
+          shared column across rows (its x-position naturally follows the
+          label's length, same as Topology/Protein Length/Species below) -
+          this restores the original legend layout after the grid/column
+          version was found to not match it. The standalone "Scientific
+          Symbol" column-header row that used to sit above these rows is
+          removed entirely; that label belongs only on the Scientific Symbol
+          TAB (see the Tabs above), not as a floating column caption inside
+          the Protein Features panel body. */}
       <div className="legend--featureRow">
         <Typography>
           N-Glycan:
@@ -290,19 +286,17 @@ function Legend(props) {
             {glycoslation.length}
           </Typography>
         </Typography>
-        <div className="legend--symbolCell">
-          <div className={`button-visibility${showGlyco ? '--on' : '--off'}`}>
-            <Tooltip title="toggle visibility" placement="right-end">
-              <IconButton
-                aria-label="delete"
-                className={{ root: 'on' }}
-                size="small"
-                onClick={() => handleToggle('glyco')}
-              >
-                <VisibilityIcon />
-              </IconButton>
-            </Tooltip>
-          </div>
+        <div className={`button-visibility${showGlyco ? '--on' : '--off'}`}>
+          <Tooltip title="toggle visibility" placement="right-end">
+            <IconButton
+              aria-label="delete"
+              className={{ root: 'on' }}
+              size="small"
+              onClick={() => handleToggle('glyco')}
+            >
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
         </div>
       </div>
       <div className="legend--featureRow">
@@ -312,18 +306,16 @@ function Legend(props) {
             {disulfideBonds.length}
           </Typography>
         </Typography>
-        <div className="legend--symbolCell">
-          <div className={`button-visibility${showSulfide ? '--on' : '--off'}`}>
-            <Tooltip title="toggle visibility" placement="right-end">
-              <IconButton
-                aria-label="delete"
-                size="small"
-                onClick={() => handleToggle('sulfide')}
-              >
-                <VisibilityIcon />
-              </IconButton>
-            </Tooltip>
-          </div>
+        <div className={`button-visibility${showSulfide ? '--on' : '--off'}`}>
+          <Tooltip title="toggle visibility" placement="right-end">
+            <IconButton
+              aria-label="delete"
+              size="small"
+              onClick={() => handleToggle('sulfide')}
+            >
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
         </div>
       </div>
       {/* Moved here from the (now removed) right-side legend panel, directly
@@ -335,18 +327,16 @@ function Legend(props) {
             {sequons.length}
           </Typography>
         </Typography>
-        <div className="legend--symbolCell">
-          <div className={`button-visibility${showSequons ? '--on' : '--off'}`}>
-            <Tooltip title="toggle visibility" placement="right-end">
-              <IconButton
-                aria-label="delete"
-                size="small"
-                onClick={() => handleToggle('sequons')}
-              >
-                <VisibilityIcon />
-              </IconButton>
-            </Tooltip>
-          </div>
+        <div className={`button-visibility${showSequons ? '--on' : '--off'}`}>
+          <Tooltip title="toggle visibility" placement="right-end">
+            <IconButton
+              aria-label="delete"
+              size="small"
+              onClick={() => handleToggle('sequons')}
+            >
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
         </div>
       </div>
       <div className="legend--featureRow">
@@ -356,18 +346,16 @@ function Legend(props) {
             {cysteines.length}
           </Typography>
         </Typography>
-        <div className="legend--symbolCell">
-          <div className={`button-visibility${showCysteines ? '--on' : '--off'}`}>
-            <Tooltip title="toggle visibility" placement="right-end">
-              <IconButton
-                aria-label="delete"
-                size="small"
-                onClick={() => handleToggle('cysteines')}
-              >
-                <VisibilityIcon />
-              </IconButton>
-            </Tooltip>
-          </div>
+        <div className={`button-visibility${showCysteines ? '--on' : '--off'}`}>
+          <Tooltip title="toggle visibility" placement="right-end">
+            <IconButton
+              aria-label="delete"
+              size="small"
+              onClick={() => handleToggle('cysteines')}
+            >
+              <VisibilityIcon />
+            </IconButton>
+          </Tooltip>
         </div>
       </div>
       {/* #RD END */}

@@ -13,7 +13,15 @@
     top: 112px;
     // #RD END
     left: 10px;
-    width: 250px;
+    // #RD START
+    // Was a flat 250px regardless of content - per feedback, the panel
+    // should hug its actual content instead of stretching wide. fit-content
+    // lets it shrink down to whatever its widest row/tab actually needs;
+    // max-width keeps it from growing past a sane sidebar width if a
+    // longer species name or a wide tab label ever pushes it out.
+    width: fit-content;
+    max-width: 260px;
+    // #RD END
     background-color: #f8f8ff;
   }
 
@@ -26,7 +34,10 @@
     top: 112px;
     // #RD END
     left: 10px;
-    width: 250px;
+    // #RD START
+    width: fit-content;
+    max-width: 260px;
+    // #RD END
     background-color: #f8f8ff;
     opacity: 0.2;
     &:hover {
@@ -101,22 +112,23 @@
   // (label + two Buttons) vertically aligned without manual offsets.
   //
   // --menuItem (Topology/Protein Length/Species) and --featureRow (the
-  // eye-icon rows) share ONE identical padding/min-height contract here so
-  // every row - regardless of which of the two layouts it uses - has the
-  // same top/bottom padding and the same minimum height, instead of each
-  // relying on its own content to happen to look the same size. min-height
-  // (not a fixed height) so rows with taller content, like Topology's
-  // buttons, are never clipped.
+  // eye-icon rows) share ONE identical padding contract here so every row -
+  // regardless of which of the two layouts it uses - has the same top/bottom
+  // padding, instead of each relying on its own content to happen to look
+  // the same size.
   //
   // #RD START
-  // Tightened from padding: 4px 0 / min-height: 32px per professor feedback
-  // ("reduce the spacing of the left panel") - 28px min-height is still
-  // comfortably taller than the small (24px) icon/text content each row
-  // holds, so nothing gets cramped, it's just less dead air above/below it.
+  // A prior "aligned eye icon column" version of this panel used a grid
+  // layout + a fixed min-height per row (28px) here; per feedback that
+  // didn't match the original legend style (rows read as too spaced out,
+  // and the icons' shared-column alignment was itself the wrong look - see
+  // --featureRow below). min-height is dropped entirely - each row now
+  // sizes to its own content (label/icon line-height) - and padding is
+  // trimmed to the smallest amount that still gives a visible gap above
+  // rows' text ascenders/descenders.
   &--menuItem,
   &--featureRow {
-    padding: 2px 0;
-    min-height: 28px;
+    padding: 1px 0;
     box-sizing: border-box;
   }
   // #RD END
@@ -132,117 +144,99 @@
   }
 
   // #RD START
-  // Shared 2-column grid for the visibility-toggle ("eye icon") rows -
-  // N-Glycan, Disulfides, Free Sequon, Free Cysteine. Column 1 (label +
-  // count) is flexible (minmax(0, 1fr) lets it shrink/wrap instead of
-  // overflowing on narrow widths); column 2 is a FIXED 72px width (wide
-  // enough for "SCIENTIFIC" - the header's longest word - to sit on one line
-  // without being force-broken mid-word; 48px was too narrow and let the
-  // header's flex item overflow the column instead of wrapping cleanly,
-  // which is what actually made it look like it was floating off-position),
-  // so every row's eye icon lands at the exact same horizontal position
-  // regardless of how long its label text is. Previously these rows used
-  // .legend--menuItem (a plain flex row) whose second child auto-sized right
-  // after the label's content width, so the icon's x-position drifted per
-  // row - that was the original root cause of the misalignment, not any one
-  // row's own margin/padding.
+  // Plain left-aligned flex row - label+count directly followed by its eye
+  // icon, with a small fixed gap between them. This is the original legend
+  // look: each row's icon sits immediately after its own text, so its
+  // x-position naturally differs row to row depending on label length (it
+  // is NOT aligned into a shared vertical column - a grid-based version that
+  // did that was tried and didn't match the requested layout).
   &--featureRow {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 72px;
-    align-items: center;
-    column-gap: 10px;
-  }
-
-  // Left-aligns the eye icon within its fixed-width grid cell, flush to the
-  // column's left edge. Shared by BOTH the header row's label cell and every
-  // data row's icon cell (see Legend/index.js) - they must use the exact
-  // same justify-content value, or the header's left edge and the icons'
-  // left edge land at two different x-coordinates even though they share the
-  // same grid-template-columns (measured: with the icons centered and only
-  // the header left-aligned, the header sat 12px to the left of the icons'
-  // actual rendered edge - that was the root cause of the "still misaligned"
-  // report, not the grid itself).
-  //
-  // min-width: 0 overrides the flex item's default min-width: auto, which
-  // otherwise refuses to shrink the cell below its content's natural width -
-  // without it, this cell (and the header label wrapped in it) could overflow
-  // past the grid column's 72px instead of staying inside it.
-  &--symbolCell {
     display: flex;
-    justify-content: flex-start;
     align-items: center;
-    min-width: 0;
+    justify-content: flex-start;
+    gap: 6px;
 
-    // .button-visibility--on/--off carry a position:relative left/bottom
-    // nudge tuned for their OTHER usage outside this grid (e.g. the Legend
-    // title's transparency toggle, left untouched there) - neutralized only
-    // inside this cell, since flex-start now places the icon correctly on
-    // its own without it.
+    // #RD START
+    // .button-visibility--on/--off (below) carry `position: relative;
+    // bottom: 11px; left: 10px;` tuned for their OTHER usage (the Legend
+    // title's own transparency toggle, left untouched) - inside a feature
+    // row that offset visually lifts the icon 11px above and 10px right of
+    // where align-items: center already placed it, which is exactly what
+    // made every eye float above its row's text instead of sitting level
+    // with it. Neutralized here, scoped to feature-row icons only (two
+    // classes - .legend--featureRow plus the button-visibility class -
+    // beats the single-class original rule's specificity regardless of
+    // stylesheet order), so the title's own toggle keeps its existing nudge
+    // untouched while these rows rely on the row's own flex centering.
+    //
+    // MuiIconButton-root's padding is also trimmed here (from size="small"'s
+    // own 3px default) so the button's rendered box is close to the same
+    // height as the text's line-height - otherwise the button stays the
+    // tallest child in the row and keeps the row taller than the text needs,
+    // even once it's centered instead of floating.
     .button-visibility--on,
     .button-visibility--off {
       position: static;
-    }
 
-    // #RD START
-    // Nested here (compiles to `.legend--symbolCell .legend--symbolHeaderLabel`)
-    // rather than written as a standalone, same-level `&--symbolHeaderLabel`
-    // rule. MUI's Typography also carries its OWN class here
-    // (.MuiTypography-body1, since no `variant` prop is set) - a bare,
-    // single-class selector has the SAME specificity as .MuiTypography-body1,
-    // so whichever one MUI's JSS runtime happened to insert into <head>
-    // later silently won (measured with real DevTools computed styles:
-    // font-size actually computed to MUI's 16px default, not this rule's
-    // 9px - the actual reason "SCIENTIFIC" never fit any column width and
-    // kept overflowing/wrapping badly, no matter how wide the column was
-    // made). This descendant selector has two classes - specificity that
-    // reliably beats MUI's one-class rule regardless of stylesheet order -
-    // the correct fix, not a wider column or !important.
-    .legend--symbolHeaderLabel {
-      font-size: 9px;
-      font-weight: bold;
-      letter-spacing: 0.02em;
-      text-transform: uppercase;
-      text-align: left;
-      line-height: 1.15;
-      color: rgba(0, 0, 0, 0.6);
-      // Belt-and-suspenders alongside .legend--symbolCell's own min-width: 0
-      // above - guarantees this label wraps within whatever width its cell
-      // actually has (e.g. on a narrower sidebar) instead of overflowing it.
-      overflow-wrap: break-word;
-      min-width: 0;
+      .MuiIconButton-root {
+        padding: 0;
+        line-height: 1;
+      }
     }
     // #RD END
-  }
-
-  // Column-header row sitting above the feature rows, sharing the exact same
-  // .legend--featureRow grid AND the exact same .legend--symbolCell
-  // left-alignment, so its label starts at the identical x-coordinate as
-  // every eye icon below it - not the Tabs component (that's a separate
-  // control, unrelated to this column's alignment).
-  &--featureHeader {
-    margin-bottom: 2px;
   }
   // #RD END
 
   // Wraps each tab panel's rows (see infoLeft/symbolLeft in Legend/index.js).
   // Normal block/flex flow - the container's height always grows to fit
   // however many rows it holds, so it can never render shorter than its
-  // actual content. Gap tightened from 10px to 6px (row spacing, per
-  // professor feedback) - still a clear, visible break between rows, just
-  // not as much dead space between them.
+  // actual content.
+  // #RD START
+  // Tightened further (6px -> 3px) per feedback that rows should sit close
+  // together - roughly line-height plus a few px, not a visibly separated
+  // list.
   &--panelContent {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 3px;
   }
   // #RD END
 
+  // #RD START
+  // align-items: center was missing here, so this flex row fell back to the
+  // default (stretch) - combined with .button-visibility--on/--off's own
+  // `position: relative; bottom: 11px;` (kept for this row's OTHER usage,
+  // see --featureRow above), the eye toggle rendered 11px above center
+  // instead of level with "Legend". Scoped to just `bottom` (not the whole
+  // position/left, unlike --featureRow's fix) so the icon's existing
+  // horizontal spacing from the title is untouched - only its vertical
+  // offset was ever the problem here.
+  //
+  // bottom: 4px (not 0) because align-items: center alone still leaves a
+  // small, real, measured gap: the icon button's own box (48px, from its
+  // default non-small padding) is taller than the title's line-height box
+  // (30px), and text glyphs don't render perfectly centered within their own
+  // line-height box (browsers split the leading above/below a font's glyphs
+  // based on its own ascent/descent metrics, not an even 50/50 split) - so
+  // even with both boxes centered against each other, the two glyphs' actual
+  // optical centers land a few px apart. Measured directly (real
+  // getBoundingClientRect on both elements, not assumed): the icon's own
+  // visual center sat 4px below the title's after align-items: center alone,
+  // so a small 4px lift closes that gap exactly - confirmed by re-measuring
+  // afterward (both centers land on the same pixel).
   &--header {
     display: flex;
+    align-items: center;
     width: max-content;
     margin-bottom: -15px;
     margin-top: -15px;
+
+    .button-visibility--on,
+    .button-visibility--off {
+      bottom: 4px;
+    }
   }
+  // #RD END
 
   // #RD START
   &--aminoAcidGrid {

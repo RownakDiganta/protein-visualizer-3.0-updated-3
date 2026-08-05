@@ -190,95 +190,102 @@ function Visualization(props) {
   const SPINE_START_POS = 30;
 
   // #RD START
-  // Reserves horizontal space, for the FULL-LENGTH view only, matching the
-  // fixed-position Legend (left) and "Amino acids and mods" (right) panels -
-  // see .legend--wrapper (left: 10px, width: 250px) and .legend--wrapperRight
-  // (right: 10px, width: 300px) in Legend/index.scss. Those panels are
-  // position: fixed, so they're painted in the same viewport-relative layer
-  // regardless of where the diagram sits in normal document flow; moving the
-  // diagram higher up the page (see VISUALIZATION_HEIGHT_CAP in App.jsx) put
-  // it in the exact vertical band the panels already occupied. The diagram's
-  // old left/right breathing room (margin.left, ~10% of viewport width, used
-  // on BOTH sides) was never actually tied to the panels' real footprint -
-  // measuring confirmed the drawing group's own origin (translateX) landed
-  // well inside the Legend panel's right edge, so residue labels, connector
-  // lines, and even the NH2 terminus label rendered underneath it, and the
-  // COOH terminus label rendered underneath the right panel.
-  //
-  // Values below are kept in sync by hand with Legend/index.scss's panel
-  // widths (SCSS and this JS module can't literally share one constant) plus
-  // a gap wide enough for this view's own edge content (the NH2 label
-  // extends further left of the spine's start, the COOH label extends
-  // further right of the spine's end) - confirmed with real on-screen
-  // measurements, not just the panels' bare CSS widths.
-  const LEFT_PANEL_RESERVED_WIDTH = 320; // legend--wrapper: 10 + 250, + ~60px gap for the NH2 label
-  const RIGHT_PANEL_RESERVED_WIDTH = 430; // legend--wrapperRight: 10 + 300, + ~120px gap for the COOH label
+  // Lowers the FULL-LENGTH view only, per feedback that it sat too close to
+  // the top of the page (in the same vertical band as the Legend/"Amino
+  // acids and mods" panels) and needed a clear open gap below the panels
+  // before the spine starts. Added directly to translateY below (not to
+  // margin.top, which also drives innerHeight/SULFIDE_POS - the diagram's
+  // own internal vertical layout, e.g. how far labels sit above/below the
+  // spine, is unrelated to where the whole drawing group sits on the page).
+  // The SVG's own declared height grows by the same amount (see the
+  // height attr on #svg below) so the extra space is real reserved layout,
+  // not overflow:visible bleed that would clip in exports - and since the
+  // Protein Window Input card sits in normal flow right after this SVG, the
+  // taller SVG naturally pushes it further down the page too, keeping their
+  // existing gap instead of colliding with the lowered diagram.
+  const DIAGRAM_VERTICAL_SHIFT = 430;
   // #RD END
 
   // #RD START
-  // Below some viewport width, LEFT_PANEL_RESERVED_WIDTH + RIGHT_PANEL_RESERVED_WIDTH
-  // (750px combined) no longer fits, which drove SPINE_WIDTH negative at a 700px-wide
-  // viewport - confirmed by measurement. A negative width doesn't just shrink the
-  // diagram, it flips the residue-position scale's direction, so labels render out of
-  // sequence order and pile on top of each other (a real rendering bug, distinct from
-  // "cramped but correct"). The *_PANEL_MIN_RESERVED_WIDTH values below are the bare
-  // minimum that still clears the panel itself plus the terminus label's own bleed
-  // past the spine (measured empirically, same as the ideal values above) - the only
-  // thing the ideal values add on top is a few px of pure breathing room, which is
-  // what gets dropped first as the viewport narrows. MIN_SPINE_WIDTH is a last-resort
-  // floor for the (very narrow, below-any-panel-fit) case where even the bare-minimum
-  // reservation leaves no room - it trades a visually tiny diagram for never
-  // re-inverting or overlapping either panel.
-  const LEFT_PANEL_MIN_RESERVED_WIDTH = 285;
-  const RIGHT_PANEL_MIN_RESERVED_WIDTH = 375;
+  // Reserves EQUAL horizontal margin, for the FULL-LENGTH view only, on both
+  // edges of the viewport - one shared constant drives both sides, so the
+  // bar is centered (same left/right margin) at any window width instead of
+  // each side being sized independently. Per feedback, an earlier version
+  // reserved the two sides separately (a small "flush with the left panel"
+  // amount on the left, a much smaller "just clears the COOH label" amount
+  // on the right) - that made the bar's right margin far smaller than its
+  // left margin, an unintentional lopsided overshoot, not the "intentional
+  // overlap under the right panel" it was meant to be. The panels themselves
+  // are still safe to run underneath (see DIAGRAM_VERTICAL_SHIFT above -
+  // they're only as tall as their own content, well above where the diagram
+  // now sits), but "safe to overlap" never meant "asymmetric margins."
+  //
+  // DIAGRAM_HORIZONTAL_MARGIN is the actual on-screen margin from the
+  // viewport edge to the bar's edge (left edge = this value; right edge =
+  // scaledWidth - this value). It's defined as translateX + SPINE_START_POS
+  // (the bar's left edge was already correct and explicitly must not move)
+  // rather than picked fresh, so this change only narrows SPINE_WIDTH - it
+  // doesn't touch the left edge at all.
+  const DIAGRAM_HORIZONTAL_MARGIN = 270; // = previous translateX (240) + SPINE_START_POS (30) - left edge unchanged
+  // #RD END
+
+  // #RD START
+  // Below some viewport width, 2 * DIAGRAM_HORIZONTAL_MARGIN no longer fits,
+  // which would drive SPINE_WIDTH negative - confirmed in an earlier
+  // measurement that a negative width doesn't just shrink the diagram, it
+  // flips the residue-position scale's direction, so labels render out of
+  // sequence order and pile on top of each other (a real rendering bug,
+  // distinct from "cramped but correct"). DIAGRAM_HORIZONTAL_MARGIN_MIN is a
+  // smaller symmetric floor for that narrow-viewport case (derived the same
+  // way, from the previous narrow-viewport translateX); MIN_SPINE_WIDTH is
+  // the last-resort floor once even that leaves no room - it trades a
+  // visually tiny diagram for never re-inverting.
+  const DIAGRAM_HORIZONTAL_MARGIN_MIN = 240; // = previous narrow-viewport translateX (210) + SPINE_START_POS (30)
   const MIN_SPINE_WIDTH = 30;
   const idealAvailableWidth =
-    scaledWidth -
-    scaleFactor * (LEFT_PANEL_RESERVED_WIDTH + RIGHT_PANEL_RESERVED_WIDTH);
+    scaledWidth - scaleFactor * 2 * DIAGRAM_HORIZONTAL_MARGIN;
   const isReservationTight = idealAvailableWidth < MIN_SPINE_WIDTH;
-  const EFFECTIVE_LEFT_RESERVED_WIDTH = isReservationTight
-    ? LEFT_PANEL_MIN_RESERVED_WIDTH
-    : LEFT_PANEL_RESERVED_WIDTH;
-  const EFFECTIVE_RIGHT_RESERVED_WIDTH = isReservationTight
-    ? RIGHT_PANEL_MIN_RESERVED_WIDTH
-    : RIGHT_PANEL_RESERVED_WIDTH;
+  const EFFECTIVE_HORIZONTAL_MARGIN = isReservationTight
+    ? DIAGRAM_HORIZONTAL_MARGIN_MIN
+    : DIAGRAM_HORIZONTAL_MARGIN;
   // #RD END
 
   const SPINE_WIDTH = Math.max(
     MIN_SPINE_WIDTH,
-    scaledWidth -
-      scaleFactor *
-        (EFFECTIVE_LEFT_RESERVED_WIDTH + EFFECTIVE_RIGHT_RESERVED_WIDTH)
+    scaledWidth - scaleFactor * 2 * EFFECTIVE_HORIZONTAL_MARGIN
   );
 
   // #RD START
-  // Window view gets its OWN (much smaller) side margin instead of reusing
-  // the full-length view's margin.left (10% of width, reserved there mostly
-  // for the "NH2 --"/"-- COOH" terminus labels). The window view never draws
-  // those labels (see the `!isWindowView` guard around
-  // attachNTerminus/attachCTerminus below), so reusing that same wide margin
-  // was pure unused space - this was reported as "the lower visualization
-  // uses far less of the available width than the full-length one," and
-  // measuring confirmed the window protein bar previously stopped at ~81% of
-  // the SVG's width with nothing drawn in the remaining ~19%.
+  // The window view used to compute its own SEPARATE margin/width here
+  // (WINDOW_VIEW_TRANSLATE_X, WINDOW_SPINE_MARGIN_RATIO, and its own
+  // WINDOW_SPINE_START_POS/WINDOW_SPINE_WIDTH formulas) instead of sharing
+  // EFFECTIVE_HORIZONTAL_MARGIN with the full-length view above - that's
+  // exactly why the symmetric-margin fix applied to the full-length view
+  // didn't reach the window view: they were two independently-computed
+  // values that happened to agree only by coincidence, not two views reading
+  // one shared source.
   //
-  // The window view's whole drawing group is already shifted right by
-  // WINDOW_VIEW_TRANSLATE_X (see translateX in renderVisualization below) -
-  // that offset must be subtracted from the width budget here, or content
-  // sized against the full initialWidth overflows past the SVG's own right
-  // edge. That overflow is invisible in the browser (the SVG has
-  // overflow="visible", so it just bleeds past the element's box) but is
-  // genuinely clipped in PNG/PDF exports, which render only the SVG's
-  // declared width/height - confirmed by measuring the live DOM before this
-  // fix (a domain rect's rendered right edge landed ~65px past the SVG's
-  // own 1400px-wide bounding box).
-  const WINDOW_VIEW_TRANSLATE_X = initialWidth / 15;
-  const WINDOW_SPINE_MARGIN_RATIO = 0.02;
-  const WINDOW_SPINE_START_POS = initialWidth * WINDOW_SPINE_MARGIN_RATIO;
-  const WINDOW_SPINE_WIDTH =
-    initialWidth -
-    WINDOW_VIEW_TRANSLATE_X -
-    2 * initialWidth * WINDOW_SPINE_MARGIN_RATIO;
+  // WINDOW_SPINE_START_POS aliases SPINE_START_POS directly - both views
+  // start their spine the same small distance from their own drawing
+  // group's origin, nothing view-specific about that value.
+  //
+  // WINDOW_SPINE_WIDTH shares EFFECTIVE_HORIZONTAL_MARGIN (the actual thing
+  // that needed to be shared to fix the margin mismatch) but is NOT a bare
+  // alias of SPINE_WIDTH - SPINE_WIDTH is sized against scaledWidth
+  // (initialWidth * scaleFactor), because the full-length view's own
+  // horizontal-scale slider (scaleVisualization/fullScale) intentionally
+  // stretches ONLY that view wider than the viewport. The window view's own
+  // <svg> width attribute always stays at the unscaled initialWidth (see the
+  // windowSvg width prop below) - it was never affected by that slider and
+  // still shouldn't be, so this is sized against initialWidth instead of
+  // scaledWidth. If it aliased SPINE_WIDTH directly, moving the full view's
+  // scale slider would silently stretch the window view's content past its
+  // own SVG's declared width too, clipped in every export.
+  const WINDOW_SPINE_START_POS = SPINE_START_POS;
+  const WINDOW_SPINE_WIDTH = Math.max(
+    MIN_SPINE_WIDTH,
+    initialWidth - 2 * EFFECTIVE_HORIZONTAL_MARGIN
+  );
   // #RD END
 
   // #RD START
@@ -517,6 +524,46 @@ function Visualization(props) {
     return bHeight;
   };
 
+  // #RD START
+  // Draws ONE <text> element - the label's main glyph (letter) directly
+  // followed by its position number as a child <tspan>, with no dx on the
+  // number - shared by every residue label pair that puts a letter next to
+  // its position number (N-glycan/O-GalNAc/O-Glc/glycation "N"/"O", disulfide/
+  // free-cysteine "C", free-sequon "N"). Per feedback, these used to be two
+  // INDEPENDENT <text> elements, each positioned by its own dx computed from
+  // the same anchor x - the gap between them was whatever pixel difference
+  // those two dx values happened to leave, which is only ever "flush" for the
+  // one glyph width it was eyeballed against. A single text with the number
+  // as a plain trailing tspan (no dx) instead lets the SVG renderer place the
+  // number at the letter's own actual rendered advance width, so it's flush
+  // by construction - on screen and in every export path alike, regardless of
+  // font/renderer differences - with nothing to re-tune per label type.
+  // numberDy is the position number's vertical drop relative to the letter's
+  // baseline, kept as a param since different label types were already tuned
+  // to slightly different subscript drops (5px for most, 3px for the O-linked
+  // types) - purely vertical, unrelated to the horizontal gap this fixes.
+  const attachSubscriptLabel = (
+    g,
+    { dx, dy, letter, letterClass, number, numberClass, numberDy, fill }
+  ) => {
+    const text = g
+      .append('text')
+      .attr('dx', dx)
+      .attr('dy', dy)
+      .attr('class', letterClass);
+    if (fill) {
+      text.style('fill', fill);
+    }
+    text.append('tspan').text(letter);
+    text
+      .append('tspan')
+      .attr('class', numberClass)
+      .attr('dy', numberDy)
+      .text(number);
+    return text;
+  };
+  // #RD END
+
   const attachGlycoBonds = (g, isWindowView) => {
     let gBonds = glycoslation.map((el) => parseInt(el, 10));
     if (isWindowView) {
@@ -534,20 +581,15 @@ function Visualization(props) {
         ? WINDOW_SPINE_START_POS + windowProportion * WINDOW_SPINE_WIDTH
         : SPINE_START_POS + bondProportion * SPINE_WIDTH;
 
-      const atom = g.append('text');
-
-      atom
-        .attr('dx', bondPos - 8)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH - GLYCO_LINK_LENGTH * 5.5)
-        .text(() => `N`)
-        .attr('class', 'glyco-labels');
-
-      const pos = g.append('text');
-      pos
-        .attr('dx', bondPos + 4)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH - GLYCO_LINK_LENGTH * 5.0)
-        .text(() => `${el}`)
-        .attr('class', 'glyco-labels--pos');
+      attachSubscriptLabel(g, {
+        dx: bondPos - 8,
+        dy: SULFIDE_POS - GLYCO_STEM_LENGTH - GLYCO_LINK_LENGTH * 5.5,
+        letter: 'N',
+        letterClass: 'glyco-labels',
+        number: el,
+        numberClass: 'glyco-labels--pos',
+        numberDy: 5
+      });
 
       const stem = g.append('line');
       stem
@@ -616,20 +658,15 @@ function Visualization(props) {
         ? WINDOW_SPINE_START_POS + windowProportion * WINDOW_SPINE_WIDTH
         : SPINE_START_POS + bondProportion * SPINE_WIDTH;
 
-      const atom = g.append('text');
-
-      atom
-        .attr('dx', bondPos - 8)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15)
-        .text(() => `O`)
-        .attr('class', 'glyco-labels');
-
-      const pos = g.append('text');
-      pos
-        .attr('dx', bondPos + 4)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 1.1)
-        .text(() => `${el}`)
-        .attr('class', 'glyco-labels--pos');
+      attachSubscriptLabel(g, {
+        dx: bondPos - 8,
+        dy: SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15,
+        letter: 'O',
+        letterClass: 'glyco-labels',
+        number: el,
+        numberClass: 'glyco-labels--pos',
+        numberDy: 3
+      });
 
       const stem = g.append('line');
       stem
@@ -665,20 +702,15 @@ function Visualization(props) {
         ? WINDOW_SPINE_START_POS + windowProportion * WINDOW_SPINE_WIDTH
         : SPINE_START_POS + bondProportion * SPINE_WIDTH;
 
-      const atom = g.append('text');
-
-      atom
-        .attr('dx', bondPos - 8)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15)
-        .text(() => `O`)
-        .attr('class', 'glyco-labels');
-
-      const pos = g.append('text');
-      pos
-        .attr('dx', bondPos + 4)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 1.1)
-        .text(() => `${el}`)
-        .attr('class', 'glyco-labels--pos');
+      attachSubscriptLabel(g, {
+        dx: bondPos - 8,
+        dy: SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15,
+        letter: 'O',
+        letterClass: 'glyco-labels',
+        number: el,
+        numberClass: 'glyco-labels--pos',
+        numberDy: 3
+      });
 
       const stem = g.append('line');
       stem
@@ -759,20 +791,15 @@ function Visualization(props) {
         ? WINDOW_SPINE_START_POS + windowProportion * WINDOW_SPINE_WIDTH
         : SPINE_START_POS + bondProportion * SPINE_WIDTH;
 
-      const atom = g.append('text');
-
-      atom
-        .attr('dx', bondPos - 8)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15)
-        .text(() => `N`)
-        .attr('class', 'glyco-labels');
-
-      const pos = g.append('text');
-      pos
-        .attr('dx', bondPos + 4)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 1.1)
-        .text(() => `${el}`)
-        .attr('class', 'glyco-labels--pos');
+      attachSubscriptLabel(g, {
+        dx: bondPos - 8,
+        dy: SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15,
+        letter: 'N',
+        letterClass: 'glyco-labels',
+        number: el,
+        numberClass: 'glyco-labels--pos',
+        numberDy: 3
+      });
 
       const stem = g.append('line');
       stem
@@ -850,19 +877,15 @@ function Visualization(props) {
           .attr('y2', bondHeight([x, y]))
           .style('stroke', 'black');
 
-        const sulfide = g.append('text');
-        sulfide
-          .attr('dx', bondPos - 5)
-          .attr('dy', bondHeight([x, y]) + SULFIDE_ATOM_OFFSET)
-          .text(() => 'C')
-          .attr('class', 'sulfide-labels');
-
-        const pos = g.append('text');
-        pos
-          .attr('dx', bondPos + 6)
-          .attr('dy', bondHeight([x, y]) + SULFIDE_ATOM_OFFSET + 5)
-          .text(() => `${y}`)
-          .attr('class', 'sulfide-labels--pos');
+        attachSubscriptLabel(g, {
+          dx: bondPos - 5,
+          dy: bondHeight([x, y]) + SULFIDE_ATOM_OFFSET,
+          letter: 'C',
+          letterClass: 'sulfide-labels',
+          number: y,
+          numberClass: 'sulfide-labels--pos',
+          numberDy: 5
+        });
 
         const link = g.append('line');
         link
@@ -909,19 +932,15 @@ function Visualization(props) {
           .attr('y2', bondHeight([x, y]))
           .style('stroke', 'black');
 
-        const sulfide = g.append('text');
-        sulfide
-          .attr('dx', bondPos - 5)
-          .attr('dy', bondHeight([x, y]) + SULFIDE_ATOM_OFFSET)
-          .text(() => 'C')
-          .attr('class', 'sulfide-labels');
-
-        const pos = g.append('text');
-        pos
-          .attr('dx', bondPos + 7)
-          .attr('dy', bondHeight([x, y]) + SULFIDE_ATOM_OFFSET + 5)
-          .text(() => `${x}`)
-          .attr('class', 'sulfide-labels--pos');
+        attachSubscriptLabel(g, {
+          dx: bondPos - 5,
+          dy: bondHeight([x, y]) + SULFIDE_ATOM_OFFSET,
+          letter: 'C',
+          letterClass: 'sulfide-labels',
+          number: x,
+          numberClass: 'sulfide-labels--pos',
+          numberDy: 5
+        });
 
         const link = g.append('line');
         link
@@ -984,33 +1003,25 @@ function Visualization(props) {
           .attr('y2', bondHeight(pair))
           .style('stroke', 'black');
 
-        const sulfide = g.append('text');
-        sulfide
-          .attr('dx', xPos - 5)
-          .attr('dy', bondHeight(pair) + SULFIDE_ATOM_OFFSET)
-          .text(() => 'C')
-          .attr('class', 'sulfide-labels');
+        attachSubscriptLabel(g, {
+          dx: xPos - 5,
+          dy: bondHeight(pair) + SULFIDE_ATOM_OFFSET,
+          letter: 'C',
+          letterClass: 'sulfide-labels',
+          number: x,
+          numberClass: 'sulfide-labels--pos',
+          numberDy: 5
+        });
 
-        const sulfide2 = g.append('text');
-        sulfide2
-          .attr('dx', yPos - 5)
-          .attr('dy', bondHeight(pair) + SULFIDE_ATOM_OFFSET)
-          .text(() => 'C')
-          .attr('class', 'sulfide-labels');
-
-        const pos = g.append('text');
-        pos
-          .attr('dx', xPos + 4)
-          .attr('dy', bondHeight(pair) + SULFIDE_ATOM_OFFSET + 5)
-          .text(() => `${x}`)
-          .attr('class', 'sulfide-labels--pos');
-
-        const pos2 = g.append('text');
-        pos2
-          .attr('dx', yPos + 4)
-          .attr('dy', bondHeight(pair) + SULFIDE_ATOM_OFFSET + 5)
-          .text(() => `${y}`)
-          .attr('class', 'sulfide-labels--pos');
+        attachSubscriptLabel(g, {
+          dx: yPos - 5,
+          dy: bondHeight(pair) + SULFIDE_ATOM_OFFSET,
+          letter: 'C',
+          letterClass: 'sulfide-labels',
+          number: y,
+          numberClass: 'sulfide-labels--pos',
+          numberDy: 5
+        });
       });
       const link = g.append('line');
       link
@@ -1182,19 +1193,15 @@ function Visualization(props) {
         .attr('y2', SULFIDE_POS - 50)
         .style('stroke', 'black');
 
-      const label = g.append('text');
-      label
-        .attr('dx', seqPos - 4)
-        .attr('dy', SULFIDE_POS - 60)
-        .text(() => 'N')
-        .attr('class', 'sulfide-labels');
-
-      const pos = g.append('text');
-      pos
-        .attr('dx', seqPos + 8)
-        .attr('dy', SULFIDE_POS - 55)
-        .text(() => `${el}`)
-        .attr('class', 'sulfide-labels--pos');
+      attachSubscriptLabel(g, {
+        dx: seqPos - 4,
+        dy: SULFIDE_POS - 60,
+        letter: 'N',
+        letterClass: 'sulfide-labels',
+        number: el,
+        numberClass: 'sulfide-labels--pos',
+        numberDy: 5
+      });
 
       const atom = g.append('circle');
       atom
@@ -1228,11 +1235,27 @@ function Visualization(props) {
   // renders above the spine and each hollow-style letter below it, decoupled from
   // the drawing math.
   const attachAminoAcidLabels = (g, layout, direction) => {
-    layout.forEach(({ x, y, color, aminoAcid, position, textDistance }) => {
+    layout.forEach(({ x, y, color, aminoAcid, position }) => {
       const bond = g.append('line');
-      const label = g.append('text');
-      const pos = g.append('text');
       const atom = g.append('circle');
+
+      // Uses the same attachSubscriptLabel helper as every other residue
+      // label pair (see its definition above attachGlycoBonds) - single
+      // <text>, two <tspan>s, no dx on the number, so it's flush by
+      // construction in any renderer instead of relying on a hardcoded pixel
+      // gap tuned against one specific font (which is what textDistance -
+      // needed only for "W", the widest glyph - used to manually correct for).
+      const attachLabelText = (dx, dy) =>
+        attachSubscriptLabel(g, {
+          dx,
+          dy,
+          letter: aminoAcid,
+          letterClass: 'amino-acid-label',
+          number: position,
+          numberClass: 'amino-acid-label--pos',
+          numberDy: 5,
+          fill: color || 'black'
+        });
 
       if (direction === 'above') {
         bond
@@ -1242,21 +1265,7 @@ function Visualization(props) {
           .attr('y2', SULFIDE_POS - y)
           .style('stroke', color || 'black');
 
-        // Letter and position number are always drawn together (never
-        // conditional) and always at the SAME x as their connector line.
-        label
-          .attr('dx', x - 4)
-          .attr('dy', SULFIDE_POS - (y + 10))
-          .text(() => aminoAcid)
-          .attr('class', 'amino-acid-label')
-          .style('fill', color || 'black');
-
-        pos
-          .attr('dx', x + 4 + textDistance)
-          .attr('dy', SULFIDE_POS - (y + 5))
-          .text(() => position)
-          .attr('class', 'amino-acid-label--pos')
-          .style('fill', color || 'black');
+        attachLabelText(x - 4, SULFIDE_POS - (y + 10));
 
         atom
           .attr('cx', x)
@@ -1273,19 +1282,7 @@ function Visualization(props) {
           .attr('y2', SULFIDE_POS + y)
           .style('stroke', color || 'black');
 
-        label
-          .attr('dx', x - 4)
-          .attr('dy', SULFIDE_POS + (y + 10))
-          .text(() => aminoAcid)
-          .attr('class', 'amino-acid-label')
-          .style('fill', color || 'black');
-
-        pos
-          .attr('dx', x + 6 + textDistance)
-          .attr('dy', SULFIDE_POS + (y + 15))
-          .text(() => position)
-          .attr('class', 'amino-acid-label--pos')
-          .style('fill', color || 'black');
+        attachLabelText(x - 4, SULFIDE_POS + (y + 10));
 
         atom
           .attr('cx', x)
@@ -1322,19 +1319,15 @@ function Visualization(props) {
         .attr('y2', SULFIDE_POS + 50)
         .style('stroke', 'black');
 
-      const label = g.append('text');
-      label
-        .attr('dx', cysPos - 4)
-        .attr('dy', SULFIDE_POS + 60)
-        .text(() => 'C')
-        .attr('class', 'sulfide-labels');
-
-      const pos = g.append('text');
-      pos
-        .attr('dx', cysPos + 6)
-        .attr('dy', SULFIDE_POS + 65)
-        .text(() => `${el}`)
-        .attr('class', 'sulfide-labels--pos');
+      attachSubscriptLabel(g, {
+        dx: cysPos - 4,
+        dy: SULFIDE_POS + 60,
+        letter: 'C',
+        letterClass: 'sulfide-labels',
+        number: el,
+        numberClass: 'sulfide-labels--pos',
+        numberDy: 5
+      });
 
       const atom = g.append('circle');
       atom
@@ -1384,9 +1377,14 @@ function Visualization(props) {
     const svg = select(id);
     svg.style('background-color', 'white');
 
-    const translateX = isWindowView
-      ? initialWidth / 15
-      : EFFECTIVE_LEFT_RESERVED_WIDTH;
+    // #RD START
+    // Same horizontal margin for both views now (see WINDOW_SPINE_START_POS/
+    // WINDOW_SPINE_WIDTH above) - this used to be initialWidth/15 for the
+    // window view specifically, a second independently-chosen value that's
+    // exactly why the window view's bar didn't get the same left/right
+    // margins as the full-length view's.
+    const translateX = EFFECTIVE_HORIZONTAL_MARGIN - SPINE_START_POS;
+    // #RD END
     // #RD OLD CODE
     // const translateY = isWindowView ? initialWidth / 15 : margin.top;
     // #RD END OLD CODE
@@ -1396,7 +1394,10 @@ function Visualization(props) {
     // provides, so dense selections get real reserved layout space (not just
     // overflow:visible bleed) instead of a fixed height that assumes few lanes.
     const { extraTop } = isWindowView ? windowExtraSpace : fullExtraSpace;
-    const translateY = (isWindowView ? initialWidth / 15 : margin.top) + extraTop;
+    const translateY =
+      (isWindowView ? initialWidth / 15 : margin.top) +
+      extraTop +
+      (isWindowView ? 0 : DIAGRAM_VERTICAL_SHIFT);
     // #RD END
 
     const g = svg.append('g');
@@ -1561,8 +1562,17 @@ function Visualization(props) {
         // #RD START
         // Grows past the default height when the current amino-acid label
         // selection needs more lanes than the default margins provide room for,
-        // instead of assuming a fixed height sized for only a few lanes.
-        height={`${height + fullExtraSpace.extraTop + fullExtraSpace.extraBottom}`}
+        // instead of assuming a fixed height sized for only a few lanes. Also
+        // grows by DIAGRAM_VERTICAL_SHIFT (see its own definition above) so the
+        // lowered spine's extra vertical offset is real reserved space, not
+        // overflow:visible bleed past the SVG's own declared box - genuinely
+        // clipped in exports otherwise, same as the lane-space case above.
+        height={`${
+          height +
+          fullExtraSpace.extraTop +
+          fullExtraSpace.extraBottom +
+          DIAGRAM_VERTICAL_SHIFT
+        }`}
         // #RD END
         width={`${
           fullScale

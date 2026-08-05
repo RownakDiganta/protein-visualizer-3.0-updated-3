@@ -38,29 +38,34 @@ $label-font-family: Arial, Helvetica, sans-serif;
 
 // #RD START
 // Amino-acid selection labels get their own classes (not .sulfide-labels, which
-// disulfide/sequon/cysteine labels also use) so this halo only affects the
-// amino-acid lane-packing labels and doesn't change any other existing feature's
-// appearance. The white stroke drawn behind the text (paint-order: stroke) keeps
-// letters/numbers readable even when a connector line or another nearby label
-// sits behind them in a dense, multi-lane layout.
+// disulfide/sequon/cysteine labels also use) so any future amino-acid-specific
+// styling only affects these lane-packing labels, not any other feature's
+// labels.
+//
+// #RD START
+// Was a white text-halo (paint-order: stroke + stroke: white + stroke-width)
+// meant to keep letters/numbers readable over a connector line or another
+// nearby label in a dense, multi-lane layout - removed per feedback that it
+// rendered as an unwanted white outline/box around each glyph in every export
+// path (PDF, Full/Window Image, Full/Window SVG). All three export paths
+// rasterize/serialize this exact same live SVG (see captureFullImage/
+// captureScreenshot/captureFullSVG/captureWindowSVG/captureWindowsImage in
+// App.jsx - createStyleElementFromCSS inlines the live stylesheet rules
+// verbatim, it doesn't add its own), so removing the rule here removes the
+// halo everywhere at once rather than needing an export-specific override.
+// Removed entirely rather than set to a transparent/0-width stroke - a
+// transparent stroke can still leave a rendering seam in some rasterizers.
 .amino-acid-label {
   font-size: 1.0rem;
   font-weight: bold;
   font-family: $label-font-family;
-  paint-order: stroke;
-  stroke: white;
-  stroke-width: 3px;
-  stroke-linejoin: round;
   &--pos {
     font-size: 0.75rem;
     font-weight: bold;
     font-family: $label-font-family;
-    paint-order: stroke;
-    stroke: white;
-    stroke-width: 3px;
-    stroke-linejoin: round;
   }
 }
+// #RD END
 // #RD END
 
 .glyco-labels {
