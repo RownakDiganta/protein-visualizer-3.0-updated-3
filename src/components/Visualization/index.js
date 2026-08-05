@@ -9,15 +9,11 @@ import Legend from '../Legend';
 import ProteinWindow from './ProteinWindow';
 // #RD START
 import {
-  AMINO_LABEL_FONT_SIZE,
-  AMINO_LABEL_HORIZONTAL_PADDING,
-  AMINO_LABEL_LANE_GAP,
-  AMINO_LABEL_BASE_OFFSET,
   AMINO_LABEL_MAX_VISIBLE_LANES,
   AMINO_ACID_BASE_CONNECTOR_LENGTH,
   AMINO_ACID_LANE_GAP,
   AMINO_LABEL_SAFETY_BUFFER,
-  layoutAminoAcidLabels,
+  buildTypeBandMap,
   layoutAminoAcidLabelsByType,
   computeRequiredLabelSpace
 } from './labelPlacement';
@@ -203,56 +199,118 @@ function Visualization(props) {
   // Protein Window Input card sits in normal flow right after this SVG, the
   // taller SVG naturally pushes it further down the page too, keeping their
   // existing gap instead of colliding with the lowered diagram.
-  const DIAGRAM_VERTICAL_SHIFT = 430;
+  // #RD START
+  // Reduced from 430 - per feedback to move the diagram back toward the
+  // vertical position of Murphy's reference deployment (murphv.github.io/
+  // Protein-Visualizer-3.0/), specifically ~200px higher than the 430
+  // version sat. Murphy's own version has no equivalent shift at all (it
+  // predates this fix entirely) and instead uses an UNCAPPED
+  // window.innerHeight-driven margin, so its own on-screen position moves
+  // with window height in a way this fixed pixel constant deliberately
+  // does not (VISUALIZATION_HEIGHT_CAP in App.jsx already caps that
+  // per-render height source, a separate, earlier, still-intact fix) -
+  // there is no single pixel-for-pixel equivalent between the two designs,
+  // so this value is calibrated to the requested ~200px reduction rather
+  // than an exact cross-site measurement.
+  // #RD START
+  // +13 (230 -> 243) - a further small nudge down per follow-up feedback
+  // comparing directly against Murphy's live deployment.
+  const DIAGRAM_VERTICAL_SHIFT = 243;
+  // #RD END
   // #RD END
 
   // #RD START
-  // Reserves EQUAL horizontal margin, for the FULL-LENGTH view only, on both
-  // edges of the viewport - one shared constant drives both sides, so the
-  // bar is centered (same left/right margin) at any window width instead of
-  // each side being sized independently. Per feedback, an earlier version
-  // reserved the two sides separately (a small "flush with the left panel"
-  // amount on the left, a much smaller "just clears the COOH label" amount
-  // on the right) - that made the bar's right margin far smaller than its
-  // left margin, an unintentional lopsided overshoot, not the "intentional
-  // overlap under the right panel" it was meant to be. The panels themselves
-  // are still safe to run underneath (see DIAGRAM_VERTICAL_SHIFT above -
-  // they're only as tall as their own content, well above where the diagram
-  // now sits), but "safe to overlap" never meant "asymmetric margins."
+  // Pure reserved BOTTOM padding on the full-length #svg only - added to its
+  // declared height (see the height attr on #svg below) but NOT to
+  // translateY, so it never moves the upper diagram itself (backbone,
+  // labels, brackets all stay exactly where DIAGRAM_VERTICAL_SHIFT put
+  // them). Its only job is to set how far below the upper diagram
+  // .window-section (the Protein Window Input card AND the window-view
+  // diagram below it, wrapped together - see the window-section div below)
+  // sits, in normal document flow - since .window-section's own position is
+  // entirely determined by what precedes it (this #svg's height) plus its
+  // own fixed margin-top/gap (index.scss, both untouched here), this ONE
+  // value is what moves the card+lower-diagram block as a single unit
+  // without touching the spacing between the two of THEM.
   //
-  // DIAGRAM_HORIZONTAL_MARGIN is the actual on-screen margin from the
-  // viewport edge to the bar's edge (left edge = this value; right edge =
-  // scaledWidth - this value). It's defined as translateX + SPINE_START_POS
-  // (the bar's left edge was already correct and explicitly must not move)
-  // rather than picked fresh, so this change only narrows SPINE_WIDTH - it
-  // doesn't touch the left edge at all.
-  const DIAGRAM_HORIZONTAL_MARGIN = 270; // = previous translateX (240) + SPINE_START_POS (30) - left edge unchanged
+  // Originally 500 (sized so the card sat fully below the fold - Murphy's
+  // reference deployment does the same via an uncapped, height-driven
+  // margin that has no equivalent here, see DIAGRAM_VERTICAL_SHIFT's comment
+  // above). Reduced by exactly 200 per feedback asking the card and lower
+  // diagram to move up 200px as one block, closing that much of the gap
+  // between them and the upper diagram - this necessarily gives up some of
+  // that below-the-fold margin at shorter viewport heights (see the
+  // collision-check measurements in the commit/PR notes for this change);
+  // the upper diagram and the .window-section-internal spacing are both
+  // unaffected either way.
+  const PROTEIN_WINDOW_CARD_CLEARANCE = 300;
   // #RD END
 
   // #RD START
-  // Below some viewport width, 2 * DIAGRAM_HORIZONTAL_MARGIN no longer fits,
-  // which would drive SPINE_WIDTH negative - confirmed in an earlier
-  // measurement that a negative width doesn't just shrink the diagram, it
-  // flips the residue-position scale's direction, so labels render out of
-  // sequence order and pile on top of each other (a real rendering bug,
-  // distinct from "cramped but correct"). DIAGRAM_HORIZONTAL_MARGIN_MIN is a
-  // smaller symmetric floor for that narrow-viewport case (derived the same
-  // way, from the previous narrow-viewport translateX); MIN_SPINE_WIDTH is
-  // the last-resort floor once even that leaves no room - it trades a
-  // visually tiny diagram for never re-inverting.
-  const DIAGRAM_HORIZONTAL_MARGIN_MIN = 240; // = previous narrow-viewport translateX (210) + SPINE_START_POS (30)
+  // Reserves horizontal margin, for the FULL-LENGTH view only, on each edge
+  // of the viewport - one pair of shared constants (left/right) drives both
+  // views, so a given side always gets the same margin at any window width
+  // instead of each side being sized independently per view. Per feedback,
+  // an earlier version reserved the two sides separately in a way that
+  // produced an unintentional lopsided overshoot (see the removed
+  // single-EQUAL-margin comment this replaced) - that was fixed by forcing
+  // both sides equal. This later round of feedback asked to widen the RIGHT
+  // side specifically (extend that edge outward) while leaving the LEFT
+  // edge exactly where it was, which an equal-margin constant can't express
+  // by itself - so the single DIAGRAM_HORIZONTAL_MARGIN is now two
+  // independent constants, left and right, instead of reintroducing a
+  // shared-but-still-equal value.
+  //
+  // DIAGRAM_HORIZONTAL_MARGIN_LEFT/_RIGHT are the actual on-screen margins
+  // from the viewport edge to the bar's edge on that side (left edge = LEFT
+  // value; right edge = scaledWidth - RIGHT value). LEFT is unchanged from
+  // the prior equal-margin value (translateX + SPINE_START_POS) - the bar's
+  // left edge was already confirmed correct and explicitly must not move.
+  const DIAGRAM_HORIZONTAL_MARGIN_LEFT = 360;
+  // #RD START
+  // Decreased from 360 (the old equal-margin value) by ~63 - per feedback
+  // that the bar's right edge should extend outward by about that amount
+  // while the left edge stays put, i.e. an asymmetric margin rather than
+  // the equal-margin design used previously. Shrinking the right-side
+  // reservation is what pushes the right edge outward (bar edge = scaledWidth
+  // - this value), consistent with the same margin-drives-edge relationship
+  // the left constant already uses.
+  const DIAGRAM_HORIZONTAL_MARGIN_RIGHT = 297;
+  // #RD END
+  // #RD END
+
+  // #RD START
+  // Below some viewport width, LEFT + RIGHT no longer fits, which would
+  // drive SPINE_WIDTH negative - confirmed in an earlier measurement that a
+  // negative width doesn't just shrink the diagram, it flips the
+  // residue-position scale's direction, so labels render out of sequence
+  // order and pile on top of each other (a real rendering bug, distinct
+  // from "cramped but correct"). The _MIN constants are smaller floors for
+  // that narrow-viewport case (each derived the same way, keeping the same
+  // 30px gap below its own ideal value the equal-margin version used);
+  // MIN_SPINE_WIDTH is the last-resort floor once even that leaves no room -
+  // it trades a visually tiny diagram for never re-inverting.
+  const DIAGRAM_HORIZONTAL_MARGIN_LEFT_MIN = 330;
+  const DIAGRAM_HORIZONTAL_MARGIN_RIGHT_MIN = 267;
   const MIN_SPINE_WIDTH = 30;
   const idealAvailableWidth =
-    scaledWidth - scaleFactor * 2 * DIAGRAM_HORIZONTAL_MARGIN;
+    scaledWidth -
+    scaleFactor *
+      (DIAGRAM_HORIZONTAL_MARGIN_LEFT + DIAGRAM_HORIZONTAL_MARGIN_RIGHT);
   const isReservationTight = idealAvailableWidth < MIN_SPINE_WIDTH;
-  const EFFECTIVE_HORIZONTAL_MARGIN = isReservationTight
-    ? DIAGRAM_HORIZONTAL_MARGIN_MIN
-    : DIAGRAM_HORIZONTAL_MARGIN;
+  const EFFECTIVE_HORIZONTAL_MARGIN_LEFT = isReservationTight
+    ? DIAGRAM_HORIZONTAL_MARGIN_LEFT_MIN
+    : DIAGRAM_HORIZONTAL_MARGIN_LEFT;
+  const EFFECTIVE_HORIZONTAL_MARGIN_RIGHT = isReservationTight
+    ? DIAGRAM_HORIZONTAL_MARGIN_RIGHT_MIN
+    : DIAGRAM_HORIZONTAL_MARGIN_RIGHT;
   // #RD END
 
   const SPINE_WIDTH = Math.max(
     MIN_SPINE_WIDTH,
-    scaledWidth - scaleFactor * 2 * EFFECTIVE_HORIZONTAL_MARGIN
+    scaledWidth -
+      scaleFactor *
+        (EFFECTIVE_HORIZONTAL_MARGIN_LEFT + EFFECTIVE_HORIZONTAL_MARGIN_RIGHT)
   );
 
   // #RD START
@@ -269,11 +327,11 @@ function Visualization(props) {
   // start their spine the same small distance from their own drawing
   // group's origin, nothing view-specific about that value.
   //
-  // WINDOW_SPINE_WIDTH shares EFFECTIVE_HORIZONTAL_MARGIN (the actual thing
-  // that needed to be shared to fix the margin mismatch) but is NOT a bare
-  // alias of SPINE_WIDTH - SPINE_WIDTH is sized against scaledWidth
-  // (initialWidth * scaleFactor), because the full-length view's own
-  // horizontal-scale slider (scaleVisualization/fullScale) intentionally
+  // WINDOW_SPINE_WIDTH shares EFFECTIVE_HORIZONTAL_MARGIN_LEFT/_RIGHT (the
+  // actual thing that needed to be shared to fix the margin mismatch) but is
+  // NOT a bare alias of SPINE_WIDTH - SPINE_WIDTH is sized against
+  // scaledWidth (initialWidth * scaleFactor), because the full-length view's
+  // own horizontal-scale slider (scaleVisualization/fullScale) intentionally
   // stretches ONLY that view wider than the viewport. The window view's own
   // <svg> width attribute always stays at the unscaled initialWidth (see the
   // windowSvg width prop below) - it was never affected by that slider and
@@ -284,8 +342,59 @@ function Visualization(props) {
   const WINDOW_SPINE_START_POS = SPINE_START_POS;
   const WINDOW_SPINE_WIDTH = Math.max(
     MIN_SPINE_WIDTH,
-    initialWidth - 2 * EFFECTIVE_HORIZONTAL_MARGIN
+    initialWidth -
+      (EFFECTIVE_HORIZONTAL_MARGIN_LEFT + EFFECTIVE_HORIZONTAL_MARGIN_RIGHT)
   );
+  // #RD END
+
+  // #RD START
+  // ONE shared type -> band(lane) map, built once per render and used by
+  // BOTH views and by every bandable feature type (amino acids AND
+  // modifications) - the fix for the full-length and window views' label
+  // tiering disagreeing with each other. They used to run two entirely
+  // separate layout strategies: layoutAminoAcidLabelsByType (one fixed lane
+  // per TYPE) for the full view, and layoutAminoAcidLabels (collision-aware,
+  // laning individual residue OCCURRENCES regardless of type) for the window
+  // view - same type could land at different heights per occurrence in the
+  // window view, and had no reason to agree with the full view's per-type
+  // lane at all. Both views now call layoutAminoAcidLabelsByType with this
+  // SAME map, so a given type always resolves to the same band in both.
+  //
+  // "Above" band membership: solid-style amino acids (the default render
+  // style) plus every modification - all six modification types draw above
+  // the spine unconditionally (see attachOGalNAcBonds/attachOGlcBonds/
+  // attachGlycationBonds/attachPhosphorylation below; none of them has a
+  // "below" variant). "Below" band membership: hollow-style amino acids only
+  // (currently K and W - see AMINO_ACID_RENDER_STYLE in constants.js).
+  //
+  // Band index = order of first appearance in selectedAminoAcids (the same
+  // state array both views, and every feature type, read in the same
+  // render), packed consecutively (0, 1, 2, ...) within each side via
+  // buildTypeBandMap - never a raw/sparse index, so a 2-type selection
+  // always uses bands 0-1 regardless of which 2 types they are, with no gap
+  // left where a deselected type used to be.
+  const isAboveStyleType = (key) => {
+    if (!AMINO_ACIDS.includes(key)) {
+      return true; // every modification draws above the spine
+    }
+    const style = AMINO_ACID_RENDER_STYLE[key] || DEFAULT_AMINO_ACID_RENDER_STYLE;
+    return style.visualize === 'solid';
+  };
+  const aboveBandMap = buildTypeBandMap(
+    selectedAminoAcids.filter(isAboveStyleType)
+  );
+  const belowBandMap = buildTypeBandMap(
+    selectedAminoAcids.filter((key) => !isAboveStyleType(key))
+  );
+  // Distance from the spine to a given band, in the SAME units/scale as the
+  // amino-acid lane system (AMINO_ACID_BASE_CONNECTOR_LENGTH +
+  // lane * AMINO_ACID_LANE_GAP) - used by the modification attach functions
+  // below so their whole label/stem/marker group sits at the same height as
+  // an amino acid type would in the same band, instead of each modification
+  // type having its own independent fixed height (which is what let
+  // multiple modification types collide with each other before).
+  const bandReach = (lane) =>
+    AMINO_ACID_BASE_CONNECTOR_LENGTH + lane * AMINO_ACID_LANE_GAP;
   // #RD END
 
   // #RD START
@@ -299,34 +408,36 @@ function Visualization(props) {
   // responds to width/scale changes (responsive) and window-view changes
   // without any extra memoization machinery.
   //
-  // The full-length view (isWindowView === false) uses
-  // layoutAminoAcidLabelsByType: one fixed, compact lane per selected
-  // amino-acid TYPE, so every occurrence of the same amino acid shares the
-  // exact same connector length/height while different amino acids get
-  // different (tightly-spaced) ones - this is an overview, so dense same-type
-  // clusters are allowed to overlap in x rather than being pushed onto
-  // per-residue sub-lanes. The zoomed window view keeps the collision-aware
-  // lane packing (layoutAminoAcidLabels), which lanes individual residue
-  // occurrences regardless of type, for exact/readable positions.
+  // Both views now use layoutAminoAcidLabelsByType (one fixed, compact lane
+  // per selected amino-acid TYPE, from the shared aboveBandMap/belowBandMap
+  // above) - every occurrence of the same amino acid shares the exact same
+  // connector length/height, in both views, while different types get
+  // different, tightly-spaced levels. Dense same-type clusters are allowed
+  // to overlap somewhat in x rather than being pushed onto per-residue
+  // sub-lanes - an accepted tradeoff for staying compact, in both views.
   const buildAminoAcidLabelLayout = (isWindowView) => {
     const aboveLabels = [];
     const belowLabels = [];
 
-    // selectedAminoAcids may also contain modification keys (see above) - only
-    // actual amino-acid letters get a label/connector lane here, and their
-    // lane/color assignment is based on their order among ONLY the letters, so
-    // an amino acid's rendering never shifts depending on which/how many
-    // modifications happen to be selected alongside it.
+    // selectedAminoAcids may also contain modification keys (see above) -
+    // only actual amino-acid letters get a label here. Color assignment
+    // (unchanged by this turn's tiering fix) is still based on order among
+    // ONLY the letters, so an amino acid's COLOR never shifts depending on
+    // which/how many modifications happen to be selected alongside it - this
+    // is deliberately a separate index from the shared band/lane (aboveBandMap/
+    // belowBandMap above), which DOES include modifications, since color and
+    // vertical band are independent concerns that just happened to share one
+    // index before modifications had bands of their own.
     const selectedAminoAcidLetters = selectedAminoAcids.filter((key) =>
       AMINO_ACIDS.includes(key)
     );
 
-    selectedAminoAcidLetters.forEach((aminoAcid, aminoAcidLane) => {
+    selectedAminoAcidLetters.forEach((aminoAcid, aminoAcidColorIndex) => {
       const style =
         AMINO_ACID_RENDER_STYLE[aminoAcid] || DEFAULT_AMINO_ACID_RENDER_STYLE;
       const color =
         SELECTED_AMINO_ACID_COLORS[
-          aminoAcidLane % SELECTED_AMINO_ACID_COLORS.length
+          aminoAcidColorIndex % SELECTED_AMINO_ACID_COLORS.length
         ];
       const freePositions = aminoAcids[aminoAcid]
         ? aminoAcids[aminoAcid].free
@@ -362,64 +473,51 @@ function Visualization(props) {
       });
     });
 
-    // Window view uses the collision-aware packer's own param names
-    // (fontSize/horizontalPadding/laneGap/baseOffset); the full-length view's
-    // one-lane-per-type packer takes only baseConnectorLength/laneGap - kept as
-    // two separate config objects so neither call silently ignores props meant
-    // for the other function.
-    const windowLayoutConfig = {
-      fontSize: AMINO_LABEL_FONT_SIZE,
-      horizontalPadding: AMINO_LABEL_HORIZONTAL_PADDING,
-      laneGap: AMINO_LABEL_LANE_GAP,
-      baseOffset: AMINO_LABEL_BASE_OFFSET
-    };
+    // Both views now share the exact same layout function AND the exact same
+    // band maps (aboveBandMap/belowBandMap, built once above) - no more
+    // isWindowView branch on which algorithm or which config to use.
     const fullLayoutConfig = {
       baseConnectorLength: AMINO_ACID_BASE_CONNECTOR_LENGTH,
       laneGap: AMINO_ACID_LANE_GAP
     };
-    const layoutSideLabels = isWindowView
-      ? layoutAminoAcidLabels
-      : layoutAminoAcidLabelsByType;
-    const layoutConfig = isWindowView ? windowLayoutConfig : fullLayoutConfig;
-    const aboveLayout = layoutSideLabels({
+    const aboveLayout = layoutAminoAcidLabelsByType({
       labels: aboveLabels,
       side: 'above',
-      ...layoutConfig
+      bandMap: aboveBandMap,
+      ...fullLayoutConfig
     });
-    const belowLayout = layoutSideLabels({
+    const belowLayout = layoutAminoAcidLabelsByType({
       labels: belowLabels,
       side: 'below',
-      ...layoutConfig
+      bandMap: belowBandMap,
+      ...fullLayoutConfig
     });
 
-    // The full-length view's type lanes are spaced AMINO_ACID_LANE_GAP apart -
-    // computeRequiredLabelSpace must be told that explicitly, or it would
-    // under-size the SVG using its collision-aware defaults and clip the
-    // outermost type's labels.
-    const requiredSpaceConfig = isWindowView
-      ? undefined
-      : {
-          laneGap: AMINO_ACID_LANE_GAP,
-          baseOffset: AMINO_ACID_BASE_CONNECTOR_LENGTH,
-          buffer: AMINO_LABEL_SAFETY_BUFFER
-        };
+    const requiredSpaceConfig = {
+      laneGap: AMINO_ACID_LANE_GAP,
+      baseOffset: AMINO_ACID_BASE_CONNECTOR_LENGTH,
+      buffer: AMINO_LABEL_SAFETY_BUFFER
+    };
+    // aboveBandMap/belowBandMap may include modification-only bands that
+    // never appear in aboveLayout/belowLayout at all (aboveLayout only ever
+    // holds amino-acid labels) - e.g. 4 modifications selected and 0 amino
+    // acids would leave aboveLayout empty even though band 3 is in use.
+    // Representing the band map's own highest band as one synthetic entry
+    // guarantees the required space always covers every active type on that
+    // side, amino acid or modification, not just whichever are amino acids.
+    const bandMapSpaceEntry = (bandMap) =>
+      bandMap.size > 0 ? [{ lane: bandMap.size - 1 }] : [];
     const requiredAboveSpace = computeRequiredLabelSpace(
-      aboveLayout,
+      [...aboveLayout, ...bandMapSpaceEntry(aboveBandMap)],
       requiredSpaceConfig
     );
     const requiredBelowSpace = computeRequiredLabelSpace(
-      belowLayout,
+      [...belowLayout, ...bandMapSpaceEntry(belowBandMap)],
       requiredSpaceConfig
     );
 
-    const maxLanesAbove = aboveLayout.reduce(
-      (max, label) => Math.max(max, label.lane + 1),
-      0
-    );
-    const maxLanesBelow = belowLayout.reduce(
-      (max, label) => Math.max(max, label.lane + 1),
-      0
-    );
+    const maxLanesAbove = aboveBandMap.size;
+    const maxLanesBelow = belowBandMap.size;
     if (
       maxLanesAbove > AMINO_LABEL_MAX_VISIBLE_LANES ||
       maxLanesBelow > AMINO_LABEL_MAX_VISIBLE_LANES
@@ -643,7 +741,21 @@ function Visualization(props) {
     });
   };
 
-  const attachOGalNAcBonds = (g, isWindowView) => {
+  // #RD START
+  // reach replaces each of these 4 functions' own fixed GLYCO_STEM_LENGTH-
+  // based distance-from-spine - it's the type's resolved band distance (see
+  // bandReach above), so a modification type sits at the same height an
+  // amino acid type would in the same band, and different modification
+  // types (previously all fixed at the same height as each other, or in
+  // Phosphorylation's case a different-but-still-fixed height) now land in
+  // their own distinct bands instead of colliding. Each function keeps its
+  // own INTERNAL relative offsets between its label/stem/marker (the small
+  // fixed deltas like +9 or /2 below) exactly as they were - only the shared
+  // base distance moved from a hardcoded constant to the band-driven `reach`
+  // parameter, so nothing about a single instance's own look changed, only
+  // where the whole group sits relative to other selected types.
+  // #RD END
+  const attachOGalNAcBonds = (g, isWindowView, reach) => {
     let oBonds = o_glcnac.map((el) => parseInt(el, 10));
     if (isWindowView) {
       oBonds = oBonds.filter(
@@ -660,7 +772,7 @@ function Visualization(props) {
 
       attachSubscriptLabel(g, {
         dx: bondPos - 8,
-        dy: SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15,
+        dy: SULFIDE_POS - (reach + 9),
         letter: 'O',
         letterClass: 'glyco-labels',
         number: el,
@@ -673,7 +785,7 @@ function Visualization(props) {
         .attr('x1', bondPos)
         .attr('y1', SULFIDE_POS - 10)
         .attr('x2', bondPos)
-        .attr('y2', SULFIDE_POS - GLYCO_STEM_LENGTH)
+        .attr('y2', SULFIDE_POS - reach)
         .style('stroke', 'black');
 
       const mol = g.append('rect');
@@ -681,13 +793,13 @@ function Visualization(props) {
         .attr('width', 14)
         .attr('height', 14)
         .attr('x', bondPos - 7)
-        .attr('y', SULFIDE_POS - GLYCO_STEM_LENGTH)
+        .attr('y', SULFIDE_POS - reach)
         .style('stroke', 'black')
         .style('fill', 'yellow');
     });
   };
 
-  const attachOGlcBonds = (g, isWindowView) => {
+  const attachOGlcBonds = (g, isWindowView, reach) => {
     let oBonds = o_glc.map((el) => parseInt(el, 10));
     if (isWindowView) {
       oBonds = oBonds.filter(
@@ -704,7 +816,7 @@ function Visualization(props) {
 
       attachSubscriptLabel(g, {
         dx: bondPos - 8,
-        dy: SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15,
+        dy: SULFIDE_POS - (reach + 9),
         letter: 'O',
         letterClass: 'glyco-labels',
         number: el,
@@ -717,20 +829,26 @@ function Visualization(props) {
         .attr('x1', bondPos)
         .attr('y1', SULFIDE_POS - 10)
         .attr('x2', bondPos)
-        .attr('y2', SULFIDE_POS - GLYCO_STEM_LENGTH)
+        .attr('y2', SULFIDE_POS - reach)
         .style('stroke', 'black');
 
       const mol = g.append('circle');
       mol
         .attr('cx', bondPos)
-        .attr('cy', SULFIDE_POS - GLYCO_STEM_LENGTH + CIRCLE_RADIUS)
+        .attr('cy', SULFIDE_POS - reach + CIRCLE_RADIUS)
         .attr('r', CIRCLE_RADIUS + 3)
         .style('stroke', 'black')
         .style('fill', 'blue');
     });
   };
 
-  const attachPhosphorylation = (g, isWindowView, phosphorylation, color) => {
+  const attachPhosphorylation = (
+    g,
+    isWindowView,
+    phosphorylation,
+    color,
+    reach
+  ) => {
     let phosphos = phosphorylation.map((el) => parseInt(el, 10));
     if (isWindowView) {
       phosphos = phosphos.filter(
@@ -748,7 +866,7 @@ function Visualization(props) {
       const pos = g.append('text');
       pos
         .attr('dx', phosphoPos + 4)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 0.8 * 0.5)
+        .attr('dy', SULFIDE_POS - reach / 2)
         .text(() => `${el}`)
         .attr('class', 'glyco-labels--pos');
 
@@ -757,26 +875,26 @@ function Visualization(props) {
         .attr('x1', phosphoPos)
         .attr('y1', SULFIDE_POS - 10)
         .attr('x2', phosphoPos)
-        .attr('y2', SULFIDE_POS - GLYCO_STEM_LENGTH * 0.8)
+        .attr('y2', SULFIDE_POS - reach)
         .style('stroke', 'black');
 
       const mol = g.append('circle');
       mol
         .attr('cx', phosphoPos)
-        .attr('cy', SULFIDE_POS - GLYCO_STEM_LENGTH * 0.8 + CIRCLE_RADIUS)
+        .attr('cy', SULFIDE_POS - reach + CIRCLE_RADIUS)
         .attr('r', CIRCLE_RADIUS + 5)
         .style('fill', `${color}`);
 
       const atom = g.append('text');
       atom
         .attr('dx', phosphoPos - 5)
-        .attr('dy', SULFIDE_POS - GLYCO_STEM_LENGTH * 0.8 + CIRCLE_RADIUS + 6)
+        .attr('dy', SULFIDE_POS - reach + CIRCLE_RADIUS + 6)
         .text(() => `P`)
         .attr('class', 'glyco-labels');
     });
   };
 
-  const attachGlycationBonds = (g, isWindowView) => {
+  const attachGlycationBonds = (g, isWindowView, reach) => {
     let nBonds = glycation.map((el) => parseInt(el, 10));
     if (isWindowView) {
       nBonds = nBonds.filter(
@@ -793,7 +911,7 @@ function Visualization(props) {
 
       attachSubscriptLabel(g, {
         dx: bondPos - 8,
-        dy: SULFIDE_POS - GLYCO_STEM_LENGTH * 1.15,
+        dy: SULFIDE_POS - (reach + 9),
         letter: 'N',
         letterClass: 'glyco-labels',
         number: el,
@@ -806,13 +924,13 @@ function Visualization(props) {
         .attr('x1', bondPos)
         .attr('y1', SULFIDE_POS - 10)
         .attr('x2', bondPos)
-        .attr('y2', SULFIDE_POS - GLYCO_STEM_LENGTH)
+        .attr('y2', SULFIDE_POS - reach)
         .style('stroke', 'black');
 
       const mol = g.append('circle');
       mol
         .attr('cx', bondPos)
-        .attr('cy', SULFIDE_POS - GLYCO_STEM_LENGTH + CIRCLE_RADIUS)
+        .attr('cy', SULFIDE_POS - reach + CIRCLE_RADIUS)
         .attr('r', CIRCLE_RADIUS + 3)
         .style('stroke', 'black')
         .style('fill', 'blue');
@@ -1378,12 +1496,17 @@ function Visualization(props) {
     svg.style('background-color', 'white');
 
     // #RD START
-    // Same horizontal margin for both views now (see WINDOW_SPINE_START_POS/
-    // WINDOW_SPINE_WIDTH above) - this used to be initialWidth/15 for the
-    // window view specifically, a second independently-chosen value that's
-    // exactly why the window view's bar didn't get the same left/right
-    // margins as the full-length view's.
-    const translateX = EFFECTIVE_HORIZONTAL_MARGIN - SPINE_START_POS;
+    // Same horizontal (left) margin for both views now (see
+    // WINDOW_SPINE_START_POS/WINDOW_SPINE_WIDTH above) - this used to be
+    // initialWidth/15 for the window view specifically, a second
+    // independently-chosen value that's exactly why the window view's bar
+    // didn't get the same left/right margins as the full-length view's. Only
+    // the LEFT margin feeds translateX (the drawing group's origin) - the
+    // right margin is expressed entirely through SPINE_WIDTH/WINDOW_SPINE_WIDTH
+    // ending short of the viewport's right edge, not through any translateX
+    // term, so an asymmetric left/right margin doesn't need a second
+    // translate value here.
+    const translateX = EFFECTIVE_HORIZONTAL_MARGIN_LEFT - SPINE_START_POS;
     // #RD END
     // #RD OLD CODE
     // const translateY = isWindowView ? initialWidth / 15 : margin.top;
@@ -1422,13 +1545,17 @@ function Visualization(props) {
       attachGlycoBonds(g, isWindowView);
     }
     if (showOGalNAc) {
-      attachOGalNAcBonds(g, isWindowView);
+      attachOGalNAcBonds(g, isWindowView, bandReach(aboveBandMap.get('o_glcnac')));
     }
     if (showOGlc) {
-      attachOGlcBonds(g, isWindowView);
+      attachOGlcBonds(g, isWindowView, bandReach(aboveBandMap.get('o_glc')));
     }
     if (showGlycation) {
-      attachGlycationBonds(g, isWindowView);
+      attachGlycationBonds(
+        g,
+        isWindowView,
+        bandReach(aboveBandMap.get('glycation'))
+      );
     }
     // #RD OLD CODE
     // if (showFreeS) {
@@ -1479,13 +1606,31 @@ function Visualization(props) {
     attachAminoAcidLabels(g, aminoAcidLayout.belowLayout, 'below');
     // #RD END
     if (showPhosphoserine) {
-      attachPhosphorylation(g, isWindowView, phosphoserine, '#FDCC04');
+      attachPhosphorylation(
+        g,
+        isWindowView,
+        phosphoserine,
+        '#FDCC04',
+        bandReach(aboveBandMap.get('phosphoserine'))
+      );
     }
     if (showPhosphotyrosine) {
-      attachPhosphorylation(g, isWindowView, phosphotyrosine, '#627DCC');
+      attachPhosphorylation(
+        g,
+        isWindowView,
+        phosphotyrosine,
+        '#627DCC',
+        bandReach(aboveBandMap.get('phosphotyrosine'))
+      );
     }
     if (showPhosphothreonine) {
-      attachPhosphorylation(g, isWindowView, phosphothreonine, '#93E37F');
+      attachPhosphorylation(
+        g,
+        isWindowView,
+        phosphothreonine,
+        '#93E37F',
+        bandReach(aboveBandMap.get('phosphothreonine'))
+      );
     }
     if (!isWindowView) {
       attachNTerminus(g);
@@ -1505,9 +1650,18 @@ function Visualization(props) {
     removeElements();
     renderVisualization('#svg');
     renderVisualization('#windowSvg', true);
+    // #RD START
+    // Reads the initialWidth PROP (App.jsx's own live, resize-reactive
+    // window.innerWidth state - see its own comment there) instead of
+    // reading window.innerWidth directly here - this component's SVG width
+    // attribute below (see the width={...} JSX) and every geometry constant
+    // above (SPINE_WIDTH, translateX, etc.) already read initialWidth, so
+    // this scroll-margin calc now agrees with them by construction instead
+    // of being a second, independently-read source of the same number that
+    // could drift out of sync with it.
     if (scaleFactor !== 1) {
       document.getElementById('svg').style.marginLeft =
-        (scaleFactor - 1) * window.innerWidth;
+        (scaleFactor - 1) * initialWidth;
       // document.getElementById('svg').scrollIntoView({behavior: "auto", inline: "center"});
     } else if (fullScale) {
       document.getElementById('svg').style.marginLeft = 0;
@@ -1515,6 +1669,7 @@ function Visualization(props) {
     } else {
       document.getElementById('svg').style.marginLeft = 0;
     }
+    // #RD END
   }, [
     svgRef.current,
     showDisulfide,
@@ -1536,7 +1691,24 @@ function Visualization(props) {
     scaleFactor,
     fullScale,
     windowStart,
-    windowEnd
+    windowEnd,
+    // #RD START
+    // Added per the zoom-centering fix (see initialWidth's own comment on the
+    // <svg> width attribute below) - initialWidth now genuinely changes after
+    // mount (App.jsx's window.innerWidth state updates on resize/zoom), and
+    // every piece of this diagram's geometry (SPINE_WIDTH, translateX, the
+    // margins, WINDOW_SPINE_WIDTH) is derived from it. Without it listed
+    // here, resizing/zooming would update the <svg>'s own declared box (that
+    // JSX reads initialWidth directly, so it's always current) while the
+    // actual D3-drawn content - only (re)drawn inside this effect - stayed
+    // at whatever position the LAST effect run left it at, drifting out of
+    // sync with the box exactly like the original bug, just one layer
+    // deeper. height is included alongside it for the same reason (it feeds
+    // SULFIDE_POS/innerHeight, which several attach* functions position
+    // against).
+    initialWidth,
+    height
+    // #RD END
   ]);
 
   // #RD START
@@ -1554,7 +1726,12 @@ function Visualization(props) {
     <div className={svgWrapperClassName}>
       <svg
         style={
-          fullScale ? {} : { marginLeft: (scaleFactor - 1) * window.innerWidth }
+          // #RD START
+          // Reads the initialWidth PROP, not window.innerWidth directly - see
+          // the matching comment on the marginLeft assignment in the useEffect
+          // above; kept in sync with that same source for the same reason.
+          fullScale ? {} : { marginLeft: (scaleFactor - 1) * initialWidth }
+          // #RD END
         }
         // #RD OLD CODE
         // height={`${height}`}
@@ -1567,18 +1744,50 @@ function Visualization(props) {
         // lowered spine's extra vertical offset is real reserved space, not
         // overflow:visible bleed past the SVG's own declared box - genuinely
         // clipped in exports otherwise, same as the lane-space case above.
+        // Also grows by PROTEIN_WINDOW_CARD_CLEARANCE (see its own definition
+        // above) - pure reserved bottom padding, unrelated to the diagram's
+        // own content, that exists only to push the Protein Window Input card
+        // further down the page.
         height={`${
           height +
           fullExtraSpace.extraTop +
           fullExtraSpace.extraBottom +
-          DIAGRAM_VERTICAL_SHIFT
+          DIAGRAM_VERTICAL_SHIFT +
+          PROTEIN_WINDOW_CARD_CLEARANCE
         }`}
         // #RD END
+        // #RD START
+        // Reads the initialWidth PROP, not window.innerWidth directly - this
+        // is the ROOT FIX for the zoom-centering bug (see DIAGRAM_HORIZONTAL_
+        // MARGIN_LEFT/_RIGHT above for the geometry that reads initialWidth
+        // too). Previously this attribute read window.innerWidth LIVE while
+        // every geometry constant above (SPINE_WIDTH, translateX, margins)
+        // was computed from the initialWidth PROP - itself sourced from
+        // App.jsx's own now-reactive window.innerWidth state (see App.jsx).
+        // Both used to trace back to "the browser's width," but through two
+        // INDEPENDENT reads: this one always current, the geometry one only
+        // as current as whenever the App.jsx snapshot was last taken. Before
+        // App.jsx's fix, that snapshot was frozen at mount forever; browser
+        // zoom (ctrl +/-) changes window.innerWidth and fires 'resize'
+        // without a page reload, so the two readings silently diverged the
+        // moment a user zoomed - this <svg>'s own declared box grew/shrank
+        // to match the new live width, while the bar drawn inside it stayed
+        // positioned against the OLD width, so the .svg-wrapper--centered
+        // flex wrapper's centering math (which only ever sees this element's
+        // declared box size, not what's drawn inside it) placed the box off-
+        // center - shifting the bar's two edges apart instead of keeping
+        // them symmetric. Reading initialWidth here instead closes that gap:
+        // this attribute and every geometry constant above now read the
+        // exact same value on every single render, so they cannot disagree
+        // even for one render, regardless of scaleFactor/fullScale/zoom
+        // timing - App.jsx's resize listener is what keeps that shared value
+        // itself current.
         width={`${
           fullScale
             ? proteinLength + margin.left * 2
-            : window.innerWidth * scaleFactor
+            : initialWidth * scaleFactor
         }`}
+        // #RD END
         ref={svgRef}
         id="svg"
         overflow="visible"

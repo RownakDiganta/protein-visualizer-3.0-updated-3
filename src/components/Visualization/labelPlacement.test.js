@@ -4,6 +4,7 @@
 import {
   layoutAminoAcidLabels,
   layoutAminoAcidLabelsByType,
+  buildTypeBandMap,
   estimateLabelWidth,
   computeRequiredLabelSpace,
   AMINO_LABEL_LANE_GAP,
@@ -486,11 +487,13 @@ describe('W-specific leveling regression (full-length view)', () => {
     expect(kLabels[0].y).not.toBe(wLabels[0].y);
   });
 
-  test('the zoomed/window view keeps its own collision-aware per-residue behavior for W (not leveled the same way, by design)', () => {
-    // The window view intentionally uses the OTHER layout function
-    // (layoutAminoAcidLabels), which lanes individual residues by collision
-    // regardless of amino-acid type - this is unchanged and expected to
-    // differ from the full-length W level.
+  test('layoutAminoAcidLabels (collision-aware, per-occurrence) still lanes a dense W cluster across multiple lanes, tested in isolation', () => {
+    // Visualization/index.js no longer calls this function for the window
+    // view (both views now call layoutAminoAcidLabelsByType with a shared
+    // band map instead, so a type's tiering agrees between views - see
+    // buildTypeBandMap) - but the function itself is unchanged and still a
+    // real, exported, independently useful/testable collision-avoidance
+    // packer, so this test still covers ITS OWN behavior in isolation.
     const denseW = [
       { x: 100, text: 'W100', aminoAcid: 'W' },
       { x: 102, text: 'W102', aminoAcid: 'W' },
@@ -502,6 +505,137 @@ describe('W-specific leveling regression (full-length view)', () => {
     // collision-avoidance lanes in the window view - that's correct, existing
     // behavior and must not be "fixed" to match the full-length W level.
     expect(lanes.size).toBeGreaterThan(1);
+  });
+});
+
+// The full selectable type list (Visualization/index.js's "Amino acids and
+// mods" panel: 20 amino-acid letters + 6 modification keys), used below to
+// prove buildTypeBandMap resolves a band for ANY of them, not just whichever
+// ones happen to appear in a hand-picked example.
+const ALL_AMINO_ACIDS = [
+  'A', 'G', 'L', 'T', 'R', 'D', 'E', 'Q', 'V', 'S',
+  'P', 'Y', 'I', 'K', 'W', 'H', 'M', 'F', 'C', 'N'
+];
+const ALL_MODIFICATIONS = [
+  'phosphoserine', 'phosphothreonine', 'phosphotyrosine',
+  'o_glcnac', 'o_glc', 'glycation'
+];
+
+describe('buildTypeBandMap (shared type -> band resolution, both views)', () => {
+  test('a single type gets band 0', () => {
+    const map = buildTypeBandMap(['W']);
+    expect(map.get('W')).toBe(0);
+  });
+
+  test('bands are assigned in order of first appearance, packed with no gaps', () => {
+    const map = buildTypeBandMap(['H', 'P', 'E', 'A']);
+    expect(map.get('H')).toBe(0);
+    expect(map.get('P')).toBe(1);
+    expect(map.get('E')).toBe(2);
+    expect(map.get('A')).toBe(3);
+  });
+
+  test('resolves a deterministic band for every amino acid in the full selectable list, one at a time', () => {
+    ALL_AMINO_ACIDS.forEach((aminoAcid) => {
+      const map = buildTypeBandMap([aminoAcid]);
+      expect(map.get(aminoAcid)).toBe(0);
+    });
+  });
+
+  test('resolves a deterministic band for every modification key in the full selectable list, one at a time', () => {
+    ALL_MODIFICATIONS.forEach((mod) => {
+      const map = buildTypeBandMap([mod]);
+      expect(map.get(mod)).toBe(0);
+    });
+  });
+
+  test('amino acids and modifications interleave into ONE consecutive band sequence, not two separate ones', () => {
+    const map = buildTypeBandMap(['A', 'phosphoserine', 'E', 'o_glcnac']);
+    expect(map.get('A')).toBe(0);
+    expect(map.get('phosphoserine')).toBe(1);
+    expect(map.get('E')).toBe(2);
+    expect(map.get('o_glcnac')).toBe(3);
+  });
+
+  test('any 4-type combination from the full list packs into exactly bands 0-3, no gaps', () => {
+    const combos = [
+      ['A', 'E', 'P', 'M'],
+      ['G', 'L', 'T', 'R'],
+      ['phosphoserine', 'phosphotyrosine', 'o_glcnac', 'glycation'],
+      ['W', 'phosphothreonine', 'o_glc', 'H']
+    ];
+    combos.forEach((combo) => {
+      const map = buildTypeBandMap(combo);
+      expect(new Set(map.values())).toEqual(new Set([0, 1, 2, 3]));
+    });
+  });
+
+  test('a repeated key (e.g. appears twice in a raw selection array) only consumes one band', () => {
+    const map = buildTypeBandMap(['A', 'A', 'E']);
+    expect(map.get('A')).toBe(0);
+    expect(map.get('E')).toBe(1);
+    expect(map.size).toBe(2);
+  });
+
+  test('deterministic: identical input always produces an identical map', () => {
+    const input = ['M', 'H', 'C', 'N'];
+    const first = buildTypeBandMap(input);
+    const second = buildTypeBandMap(input);
+    expect(Array.from(first.entries())).toEqual(Array.from(second.entries()));
+  });
+});
+
+describe('layoutAminoAcidLabelsByType with an explicit shared bandMap (cross-view agreement)', () => {
+  test('an explicit bandMap overrides the local first-encountered ordering', () => {
+    const labels = [{ x: 10, text: 'A50', aminoAcid: 'A' }];
+    // Even though 'A' is the only (and therefore "first-encountered") type
+    // here, an explicit bandMap saying 'A' is band 2 must be respected -
+    // this is what lets a type keep the SAME band across two separate calls
+    // (e.g. the full view's and the window view's) even when one call's own
+    // local `labels` only contains a subset of the active types.
+    const bandMap = buildTypeBandMap(['H', 'P', 'A']);
+    const layout = layoutAminoAcidLabelsByType({ labels, bandMap });
+    expect(layout[0].lane).toBe(2);
+    expect(layout[0].y).toBe(
+      AMINO_ACID_BASE_CONNECTOR_LENGTH + 2 * AMINO_ACID_LANE_GAP
+    );
+  });
+
+  test('two independent calls sharing one bandMap agree on every type\'s band - simulating the full and window views', () => {
+    const bandMap = buildTypeBandMap(['E', 'A', 'P']);
+    // "Full view" call: has occurrences of all three types.
+    const fullLabels = [
+      { x: 10, text: 'E10', aminoAcid: 'E' },
+      { x: 20, text: 'A20', aminoAcid: 'A' },
+      { x: 30, text: 'P30', aminoAcid: 'P' }
+    ];
+    // "Window view" call: only has an occurrence of one type (as if the
+    // other two types' residues fell outside the zoomed range).
+    const windowLabels = [{ x: 25, text: 'A25', aminoAcid: 'A' }];
+
+    const fullLayout = layoutAminoAcidLabelsByType({
+      labels: fullLabels,
+      bandMap
+    });
+    const windowLayout = layoutAminoAcidLabelsByType({
+      labels: windowLabels,
+      bandMap
+    });
+
+    const fullA = fullLayout.find((l) => l.aminoAcid === 'A');
+    const windowA = windowLayout.find((l) => l.aminoAcid === 'A');
+    expect(fullA.lane).toBe(windowA.lane);
+    expect(fullA.y).toBe(windowA.y);
+  });
+
+  test('without an explicit bandMap, falls back to the original local first-encountered behavior (backward compatible)', () => {
+    const labels = [
+      { x: 10, text: 'W10', aminoAcid: 'W' },
+      { x: 20, text: 'V20', aminoAcid: 'V' }
+    ];
+    const layout = layoutAminoAcidLabelsByType({ labels });
+    expect(layout[0].lane).toBe(0);
+    expect(layout[1].lane).toBe(1);
   });
 });
 // #RD END

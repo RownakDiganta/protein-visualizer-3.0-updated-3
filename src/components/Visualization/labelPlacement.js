@@ -184,6 +184,38 @@ export const AMINO_ACID_LANE_GAP = 26;
 export const MAX_AMINO_ACID_LANES = 4;
 
 /**
+ * Assigns each key in `orderedTypeKeys` a stable band (lane) index, in order
+ * of first appearance, packed consecutively from 0 with no gaps - the SAME
+ * assignment rule used by layoutAminoAcidLabelsByType below, extracted as its
+ * own function so every feature type that needs a band (amino acids AND
+ * modifications, currently) can share ONE map instead of each maintaining its
+ * own. Because both the full-length and window views build this map from the
+ * exact same selection-order array in the same render, a given type always
+ * resolves to the same band in both - that's the fix for the two views'
+ * tiering disagreeing: they used to run two independent layout algorithms
+ * (this by-type one for the full view, layoutAminoAcidLabels' collision-aware
+ * per-occurrence packing for the window view) that had no reason to agree.
+ *
+ * Deliberately generic over `orderedTypeKeys` (any string keys, not just
+ * amino-acid letters) - covers the full selectable set (20 amino acids + 6
+ * modification keys) with the exact same logic, no per-type special-casing.
+ *
+ * @param {Array<string>} orderedTypeKeys - e.g. the raw selectedAminoAcids
+ *   array (letters and/or modification keys, in selection order); duplicates
+ *   are fine, only first appearance matters.
+ * @returns {Map<string, number>} type key -> band index (0, 1, 2, ...).
+ */
+export const buildTypeBandMap = (orderedTypeKeys) => {
+  const bandByType = new Map();
+  orderedTypeKeys.forEach((key) => {
+    if (!bandByType.has(key)) {
+      bandByType.set(key, bandByType.size);
+    }
+  });
+  return bandByType;
+};
+
+/**
  * Per-amino-acid-type layout for the full-length protein view: one fixed,
  * compact vertical level per selected amino-acid TYPE. Every occurrence of the
  * same type (e.g. every W, however densely they cluster in x) is given the
@@ -191,21 +223,22 @@ export const MAX_AMINO_ACID_LANES = 4;
  * different types get different, tightly-spaced levels
  * (AMINO_ACID_LANE_GAP apart). There is no per-residue sub-lane and no
  * collision/density-driven staggering - dense same-type clusters are expected
- * to overlap somewhat in this overview; the zoomed window below
- * (layoutAminoAcidLabels) is responsible for exact, readable positions.
- *
- * Lane 0 goes to whichever amino-acid type is first encountered in `labels`.
- * Because the caller (buildAminoAcidLabelLayout in Visualization/index.js)
- * builds `labels` by iterating the selected-amino-acids selection state in
- * order and pushing all of one type's occurrences together, "first
- * encountered" here is exactly "first selected", making lane assignment
- * stable, deterministic and predictable (1st selected type -> lane 0, 2nd ->
- * lane 1, ...).
+ * to overlap somewhat in this overview, in both the full-length AND window
+ * views (both call this function - see the `bandMap` param below).
  *
  * @param {Object} params
  * @param {Array<{x: number, text: string, aminoAcid: string}>} params.labels -
  *   arbitrary extra fields (color, position, textDistance, ...) are preserved.
  * @param {'above'|'below'} [params.side] - passed through onto the output.
+ * @param {Map<string, number>} [params.bandMap] - type key -> band index, from
+ *   buildTypeBandMap(). When provided (the normal case - Visualization/
+ *   index.js builds ONE shared map per render and passes it to every call, so
+ *   the full-length and window views, and every feature type, agree), every
+ *   label's lane comes from this shared map. When omitted, falls back to
+ *   building a local map from `labels` itself (lane 0 = first type
+ *   encountered in `labels`, same as this function's own original behavior) -
+ *   kept for standalone callers/tests that only care about one isolated
+ *   layout call and don't need cross-call/cross-view band agreement.
  * @param {number} [params.baseConnectorLength]
  * @param {number} [params.laneGap]
  * @returns {Array} each input label plus { lane, y }, in the same order the
@@ -214,18 +247,15 @@ export const MAX_AMINO_ACID_LANES = 4;
 export const layoutAminoAcidLabelsByType = ({
   labels,
   side,
+  bandMap,
   baseConnectorLength = AMINO_ACID_BASE_CONNECTOR_LENGTH,
   laneGap = AMINO_ACID_LANE_GAP
 }) => {
-  const laneByAminoAcid = new Map();
-  labels.forEach((label) => {
-    if (!laneByAminoAcid.has(label.aminoAcid)) {
-      laneByAminoAcid.set(label.aminoAcid, laneByAminoAcid.size);
-    }
-  });
+  const resolvedBandMap =
+    bandMap || buildTypeBandMap(labels.map((label) => label.aminoAcid));
 
   return labels.map((label) => {
-    const lane = laneByAminoAcid.get(label.aminoAcid);
+    const lane = resolvedBandMap.get(label.aminoAcid) || 0;
     return {
       ...label,
       side,

@@ -23,7 +23,6 @@ const { AMINO_ACIDS } = constants;
 
 const { getProteins } = parser;
 // one-time command to setup and activate the virtual environemnt script: ./venv/Scripts/activate
-const { innerWidth, innerHeight } = window;
 // #RD START
 // The Visualization component centers the protein spine at roughly half of
 // whatever `height` it's given (see SULFIDE_POS = innerHeight/2 + ... in
@@ -36,11 +35,10 @@ const { innerWidth, innerHeight } = window;
 // are page-level spacing and this is the SVG's own internal coordinate
 // space. Visualization's own default prop for `height` (500, see its
 // defaultProps) already establishes what this component considers a normal,
-// non-viewport-scaled size - VISUALIZATION_HEIGHT caps at a similar, more
+// non-viewport-scaled size - VISUALIZATION_HEIGHT_CAP caps at a similar, more
 // generous value instead of the raw viewport height, while still shrinking
 // further on genuinely short viewports so nothing gets clipped there.
 const VISUALIZATION_HEIGHT_CAP = 600;
-const visualizationHeight = Math.min(innerHeight, VISUALIZATION_HEIGHT_CAP);
 // #RD END
 
 function App() {
@@ -54,6 +52,42 @@ function App() {
   const [fullScale, setFullScale] = useState(false);
   const [fullScaleDisabled, setFullScaleDisabled] = useState(true);
   const [errorMessage, setErrorMessage] = React.useState('');
+  // #RD START
+  // Was `const { innerWidth, innerHeight } = window;` at MODULE scope (read
+  // once, when the JS bundle first evaluates, never again) - per feedback,
+  // that froze the width fed into Visualization (width={innerWidth} below)
+  // at whatever the viewport happened to be at that one moment, while
+  // Visualization/index.js's own <svg> width attribute and its
+  // .svg-wrapper--centered CSS wrapper (width: 100vw) both read the browser's
+  // TRUE, LIVE current width independently - two different sources for what
+  // should be the same number. Browser zoom (ctrl +/-) changes
+  // window.innerWidth and fires a real 'resize' event WITHOUT a page reload
+  // (fewer/more CSS px fit the same physical window), so the instant a user
+  // zoomed, the frozen prop and the live CSS values diverged - the frozen
+  // value drove where the bar's content was positioned (in the SVG's own
+  // local coordinate space), while the live value drove how big/where the
+  // SVG's own box actually rendered on screen, so the two edges of the bar
+  // shifted apart instead of staying centered together. State + a resize
+  // listener keeps this in sync with the live viewport at all times, exactly
+  // like Visualization/index.js's own live window.innerWidth reads already
+  // were (see the innerWidth prop passed below, and its own read of this same
+  // state - no more frozen vs live mismatch anywhere in this chain).
+  const [windowSize, setWindowSize] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  });
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const visualizationHeight = Math.min(
+    windowSize.height,
+    VISUALIZATION_HEIGHT_CAP
+  );
+  // #RD END
 
   const updateScaleFactor = (val) => {
     setScaleFactor(val);
@@ -650,7 +684,7 @@ function App() {
         Number.isInteger(currSelection) ? (
           <div className="html2canvas-container" ref={ToCaptureRef}>
             <Visualization
-              width={innerWidth}
+              width={windowSize.width}
               height={visualizationHeight}
               currSelection={currSelection}
               isLegendOpen={isLegendOpen}
