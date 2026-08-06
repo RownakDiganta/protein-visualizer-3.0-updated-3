@@ -32,17 +32,25 @@
 
   &-searchbar {
     // #RD START
-    // Was 12vh (viewport-relative) - on anything taller than a small laptop
-    // screen that's well over 100px of pure empty space before the search
-    // bar even renders, and everything below it (including the protein
-    // visualization, which sits in the same flex column right after this)
-    // was pushed down by the same amount. The <AppBar> below is MUI's
-    // default position="fixed", so this margin's real job is just clearing
-    // its Toolbar (min-height 56px mobile / 64px desktop) - 80px is a fixed
-    // amount that comfortably clears either breakpoint with a little
-    // breathing room, instead of a viewport-percentage figure disconnected
-    // from the actual (fixed-size) element it needs to clear.
-    margin-top: 80px;
+    // Was a fixed 80px, itself a replacement for the original 12vh -
+    // that earlier fix was made under the old geometry (a capped
+    // VISUALIZATION_HEIGHT_CAP and a fixed DIAGRAM_VERTICAL_SHIFT on the
+    // diagram below), where 12vh's proportional growth stacked on TOP of
+    // that fixed diagram shift and produced more empty space above the
+    // search bar than the fixed-height diagram below it needed. Both of
+    // those have since been removed (see App.jsx/Visualization/index.js) so
+    // the diagram itself is now proportional to window height too - 12vh
+    // restored here, matching Murphy's own mechanism
+    // (murphy/src/App.scss) exactly, verified by direct measurement against
+    // his reference deployment run locally: the empty space above the
+    // search bar is now IDENTICAL between the two apps at every tested
+    // window height (700/900/1200/1600px - 20/44/80/128px respectively,
+    // matching to the pixel), not just similar. The original complaint this
+    // was fixing no longer applies once measured against Murphy's own
+    // reference rather than in isolation - matching his mechanism means
+    // matching his whitespace too, which is no more than what his own
+    // deployment already has.
+    margin-top: 12vh;
     // #RD END
     float: left;
   }

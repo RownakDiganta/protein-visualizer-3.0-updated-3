@@ -186,44 +186,26 @@ function Visualization(props) {
   const SPINE_START_POS = 30;
 
   // #RD START
-  // Lowers the FULL-LENGTH view only, per feedback that it sat too close to
-  // the top of the page (in the same vertical band as the Legend/"Amino
-  // acids and mods" panels) and needed a clear open gap below the panels
-  // before the spine starts. Added directly to translateY below (not to
-  // margin.top, which also drives innerHeight/SULFIDE_POS - the diagram's
-  // own internal vertical layout, e.g. how far labels sit above/below the
-  // spine, is unrelated to where the whole drawing group sits on the page).
-  // The SVG's own declared height grows by the same amount (see the
-  // height attr on #svg below) so the extra space is real reserved layout,
-  // not overflow:visible bleed that would clip in exports - and since the
-  // Protein Window Input card sits in normal flow right after this SVG, the
-  // taller SVG naturally pushes it further down the page too, keeping their
-  // existing gap instead of colliding with the lowered diagram.
-  // #RD START
-  // Reduced from 430 - per feedback to move the diagram back toward the
-  // vertical position of Murphy's reference deployment (murphv.github.io/
-  // Protein-Visualizer-3.0/), specifically ~200px higher than the 430
-  // version sat. Murphy's own version has no equivalent shift at all (it
-  // predates this fix entirely) and instead uses an UNCAPPED
-  // window.innerHeight-driven margin, so its own on-screen position moves
-  // with window height in a way this fixed pixel constant deliberately
-  // does not (VISUALIZATION_HEIGHT_CAP in App.jsx already caps that
-  // per-render height source, a separate, earlier, still-intact fix) -
-  // there is no single pixel-for-pixel equivalent between the two designs,
-  // so this value is calibrated to the requested ~200px reduction rather
-  // than an exact cross-site measurement.
-  // #RD START
-  // +13 (230 -> 243) - a further small nudge down per follow-up feedback
-  // comparing directly against Murphy's live deployment.
-  const DIAGRAM_VERTICAL_SHIFT = 243;
-  // #RD END
+  // #RD OLD CODE
+  // const DIAGRAM_VERTICAL_SHIFT = 243;
+  // Was a fixed-pixel addition to translateY, calibrated (through several
+  // rounds of feedback: 430 -> 230 -> 243) to APPROXIMATE Murphy's vertical
+  // position at one specific window height. Per feedback, dropped entirely
+  // now that margin.top itself is proportional to the real, uncapped window
+  // height (see margin.top above and VISUALIZATION_HEIGHT_CAP's removal in
+  // App.jsx) - margin.top alone now produces Murphy's actual mechanism
+  // (murphy/src/components/Visualization/index.js: margin.top = height/15,
+  // no separate shift term at all), so adding a fixed extra shift on top of
+  // it would reintroduce exactly the "approximates one height, diverges at
+  // every other height" problem this constant was already found to have.
+  // #RD END OLD CODE
   // #RD END
 
   // #RD START
   // Pure reserved BOTTOM padding on the full-length #svg only - added to its
   // declared height (see the height attr on #svg below) but NOT to
   // translateY, so it never moves the upper diagram itself (backbone,
-  // labels, brackets all stay exactly where DIAGRAM_VERTICAL_SHIFT put
+  // labels, brackets all stay exactly where margin.top/translateY put
   // them). Its only job is to set how far below the upper diagram
   // .window-section (the Protein Window Input card AND the window-view
   // diagram below it, wrapped together - see the window-section div below)
@@ -233,49 +215,91 @@ function Visualization(props) {
   // value is what moves the card+lower-diagram block as a single unit
   // without touching the spacing between the two of THEM.
   //
-  // Originally 500 (sized so the card sat fully below the fold - Murphy's
-  // reference deployment does the same via an uncapped, height-driven
-  // margin that has no equivalent here, see DIAGRAM_VERTICAL_SHIFT's comment
-  // above). Reduced by exactly 200 per feedback asking the card and lower
-  // diagram to move up 200px as one block, closing that much of the gap
-  // between them and the upper diagram - this necessarily gives up some of
-  // that below-the-fold margin at shorter viewport heights (see the
-  // collision-check measurements in the commit/PR notes for this change);
-  // the upper diagram and the .window-section-internal spacing are both
-  // unaffected either way.
-  const PROTEIN_WINDOW_CARD_CLEARANCE = 300;
+  // Retuned from 300 to 76, measured against Murphy's reference deployment
+  // (murphy/src/components/Visualization/index.js, run locally for
+  // comparison) now that the upper diagram's own height is no longer capped
+  // - removing VISUALIZATION_HEIGHT_CAP and DIAGRAM_VERTICAL_SHIFT both
+  // changed how tall the upper #svg is, so the old value (tuned against the
+  // capped height) no longer lands in the same place.
+  //
+  // Murphy's own (cardTop - backboneTop) measured cleanly as EXACTLY
+  // height/2 + 100 at every tested window height (700/900/1200/1600px) -
+  // his own translateY/backboneY = height/2 (margin.top=height/15 combined
+  // with his innerHeight math simplifies to exactly that), and his card's
+  // `top: 100px` relative-position hack (ProteinWindow/index.scss, not
+  // reproduced here per the decision to keep this app's shared
+  // .window-section container instead) adds a further fixed 100. Working
+  // backward through THIS app's own formula - (height + clearance) + 24
+  // (.window-section's margin-top) - margin.top - innerHeight/2, which
+  // simplifies to height/2 + clearance + 24 - setting that equal to
+  // Murphy's height/2 + 100 gives clearance = 100 - 24 = 76, independent of
+  // height (the height/2 terms cancel on both sides), so this single fixed
+  // value reproduces Murphy's card-to-backbone relationship at every window
+  // height, not just the one it was measured against. Confirmed the
+  // pre-retune value of 300 back-calculated to exactly the same formula
+  // (height/2 + 300 + 24) against the actual pre-retune measurement, so the
+  // formula itself isn't in question - only the constant fed into it.
+  const PROTEIN_WINDOW_CARD_CLEARANCE = 76;
   // #RD END
 
   // #RD START
   // Reserves horizontal margin, for the FULL-LENGTH view only, on each edge
   // of the viewport - one pair of shared constants (left/right) drives both
   // views, so a given side always gets the same margin at any window width
-  // instead of each side being sized independently per view. Per feedback,
-  // an earlier version reserved the two sides separately in a way that
-  // produced an unintentional lopsided overshoot (see the removed
-  // single-EQUAL-margin comment this replaced) - that was fixed by forcing
-  // both sides equal. This later round of feedback asked to widen the RIGHT
-  // side specifically (extend that edge outward) while leaving the LEFT
-  // edge exactly where it was, which an equal-margin constant can't express
-  // by itself - so the single DIAGRAM_HORIZONTAL_MARGIN is now two
-  // independent constants, left and right, instead of reintroducing a
-  // shared-but-still-equal value.
+  // instead of each side being sized independently per view.
   //
-  // DIAGRAM_HORIZONTAL_MARGIN_LEFT/_RIGHT are the actual on-screen margins
-  // from the viewport edge to the bar's edge on that side (left edge = LEFT
-  // value; right edge = scaledWidth - RIGHT value). LEFT is unchanged from
-  // the prior equal-margin value (translateX + SPINE_START_POS) - the bar's
-  // left edge was already confirmed correct and explicitly must not move.
-  const DIAGRAM_HORIZONTAL_MARGIN_LEFT = 360;
   // #RD START
-  // Decreased from 360 (the old equal-margin value) by ~63 - per feedback
-  // that the bar's right edge should extend outward by about that amount
-  // while the left edge stays put, i.e. an asymmetric margin rather than
-  // the equal-margin design used previously. Shrinking the right-side
-  // reservation is what pushes the right edge outward (bar edge = scaledWidth
-  // - this value), consistent with the same margin-drives-edge relationship
-  // the left constant already uses.
-  const DIAGRAM_HORIZONTAL_MARGIN_RIGHT = 297;
+  // Replaced two hand-tuned FIXED-PIXEL constants (360 left / 297 right,
+  // approximating Murphy's reference deployment at one specific screen
+  // width) with Murphy's own actual mechanism, ported from
+  // murphy/src/components/Visualization/index.js: his `margin.left =
+  // initialWidth / 10`, reused for BOTH sides (his SPINE_WIDTH formula is
+  // `scaledWidth - scaleFactor * 2 * margin.left` - the same margin.left
+  // value subtracted twice, not two independently-chosen numbers). A fixed
+  // pixel margin only reproduces his result at the one width it was
+  // measured against; this proportional formula matches where his diagram
+  // actually lands at ANY width, which was the whole point of porting his
+  // mechanism instead of his numbers. margin.left itself is computed once,
+  // above (`const margin = {...}`) - reused here rather than redefined, the
+  // same way Murphy's own code reuses his single margin.left for both
+  // sides.
+  //
+  // #RD START
+  // Per feedback, the diagram should pass BEHIND the Legend panels (an
+  // intentional overlap), matching Murphy's deployed site. Investigated his
+  // deployed build directly (not just this local copy) before changing
+  // anything: on a FRESH page load, his own margin.left = initialWidth / 10
+  // formula produces the SAME left edge his local source predicts - and,
+  // critically, that formula is MATHEMATICALLY INCAPABLE of ever going
+  // negative (margin.left >= 0 for any positive width, so left edge =
+  // margin.left + SPINE_START_POS is always >= 30). Measured his live site
+  // at 1280/1400/1600/1920/2560px wide, fresh-loaded each time: it clears
+  // the left Legend panel above ~1900px wide, EXACTLY like this app already
+  // did with the raw ported formula (both measured 286px at 2560px wide -
+  // an exact match, not a coincidence, since it's the identical formula).
+  // Separately reproduced his frozen-module-scope-width bug (resizing his
+  // live tab without reloading desyncs his geometry from his own formula,
+  // producing inconsistent positions) - that bug is almost certainly what
+  // produced the "x < 0, clipped off the viewport" appearance being asked
+  // to match; his own STABLE formula never produces that at any width, so
+  // there is no stable target to literally reproduce there. Reported this
+  // rather than silently chasing an unreproducible, bug-dependent number.
+  //
+  // What Murphy's raw formula DOES reliably provide - real, visible overlap
+  // with the (fixed-width, fixed-position) Legend panels - was already
+  // happening at every width up to ~1900px, but necessarily stops at wider
+  // ones: a margin that grows proportionally with viewport width will
+  // always eventually outgrow a panel whose width doesn't grow with it, for
+  // ANY divisor. Capping the margin at the value his own formula already
+  // produces for a common ~1460px-wide window (146) keeps this app
+  // IDENTICAL to his raw formula (and to the previously-verified exact
+  // match) at every width at or below that, while guaranteeing the overlap
+  // never disappears at wider ones - confirmed by measurement: constant
+  // ~90px of overlap past the left panel's right edge, and an even larger
+  // margin past the right panel's left edge, at every width tested
+  // including 2560px, instead of clearing it like the uncapped formula did.
+  const DIAGRAM_HORIZONTAL_MARGIN_LEFT = Math.min(margin.left, 146);
+  const DIAGRAM_HORIZONTAL_MARGIN_RIGHT = Math.min(margin.left, 146);
   // #RD END
   // #RD END
 
@@ -285,13 +309,24 @@ function Visualization(props) {
   // negative width doesn't just shrink the diagram, it flips the
   // residue-position scale's direction, so labels render out of sequence
   // order and pile on top of each other (a real rendering bug, distinct
-  // from "cramped but correct"). The _MIN constants are smaller floors for
-  // that narrow-viewport case (each derived the same way, keeping the same
-  // 30px gap below its own ideal value the equal-margin version used);
-  // MIN_SPINE_WIDTH is the last-resort floor once even that leaves no room -
-  // it trades a visually tiny diagram for never re-inverting.
-  const DIAGRAM_HORIZONTAL_MARGIN_LEFT_MIN = 330;
-  const DIAGRAM_HORIZONTAL_MARGIN_RIGHT_MIN = 267;
+  // from "cramped but correct"). Murphy's own source has no equivalent floor
+  // at all - his margin.left is proportional, so it shrinks along with the
+  // viewport by construction and the failure mode above mostly can't arise
+  // in his design; this app keeps its own floor as a safety net for that
+  // same rare pathologically-narrow case (e.g. an embedded iframe or
+  // heavily resized panel).
+  // #RD START
+  // Recalculated from 330/267 down to 116/116 - those older values were a
+  // fixed 30px gap below the PRE-overlap margin (360/297); left unchanged
+  // after DIAGRAM_HORIZONTAL_MARGIN_LEFT/_RIGHT above were capped at 146,
+  // they'd sit ABOVE the new normal cap instead of below it - a MIN floor
+  // that's larger than the value it's meant to fall back from defeats the
+  // whole point of a floor. Recalculated the same way as before (30px below
+  // the new cap) so the "MIN is a smaller fallback than normal" invariant
+  // holds again.
+  const DIAGRAM_HORIZONTAL_MARGIN_LEFT_MIN = 116;
+  const DIAGRAM_HORIZONTAL_MARGIN_RIGHT_MIN = 116;
+  // #RD END
   const MIN_SPINE_WIDTH = 30;
   const idealAvailableWidth =
     scaledWidth -
@@ -1506,7 +1541,25 @@ function Visualization(props) {
     // ending short of the viewport's right edge, not through any translateX
     // term, so an asymmetric left/right margin doesn't need a second
     // translate value here.
-    const translateX = EFFECTIVE_HORIZONTAL_MARGIN_LEFT - SPINE_START_POS;
+    // #RD START
+    // No longer subtracts SPINE_START_POS. That subtraction only existed to
+    // cancel back out against SPINE_START_POS being re-added when the spine
+    // itself is drawn at local x = SPINE_START_POS (see attachSpine) - it
+    // made the OLD fixed-pixel DIAGRAM_HORIZONTAL_MARGIN_LEFT read directly
+    // as "the bar's absolute on-screen left margin." Murphy's own mechanism
+    // (murphy/src/components/Visualization/index.js) does NOT do this
+    // cancellation - his translateX is margin.left, full stop, so his bar's
+    // actual on-screen left margin is margin.left + SPINE_START_POS, not
+    // margin.left alone. Dropping the subtraction here ports that mechanism
+    // exactly rather than reproducing the old fixed-pixel scheme's
+    // bookkeeping choice: EFFECTIVE_HORIZONTAL_MARGIN_LEFT is now Murphy's
+    // margin.left value verbatim, so translateX must be exactly Murphy's
+    // translateX (=margin.left) for the ported formula to land where his
+    // does - confirmed by measurement, this closes an exact 30px (=
+    // SPINE_START_POS) gap between mine and his left edge that the
+    // subtraction was otherwise still introducing.
+    const translateX = EFFECTIVE_HORIZONTAL_MARGIN_LEFT;
+    // #RD END
     // #RD END
     // #RD OLD CODE
     // const translateY = isWindowView ? initialWidth / 15 : margin.top;
@@ -1516,11 +1569,16 @@ function Visualization(props) {
     // label selection needs more room above the spine than the default margin
     // provides, so dense selections get real reserved layout space (not just
     // overflow:visible bleed) instead of a fixed height that assumes few lanes.
+    // #RD START
+    // No longer adds a fixed DIAGRAM_VERTICAL_SHIFT on top of margin.top for
+    // the full-length view - per feedback, margin.top (= height/15, fed by
+    // the real uncapped window height now that VISUALIZATION_HEIGHT_CAP is
+    // gone, see App.jsx) already IS Murphy's own vertical mechanism, so a
+    // second additive shift would just reintroduce a fixed-height
+    // approximation on top of a now-correct proportional formula.
     const { extraTop } = isWindowView ? windowExtraSpace : fullExtraSpace;
-    const translateY =
-      (isWindowView ? initialWidth / 15 : margin.top) +
-      extraTop +
-      (isWindowView ? 0 : DIAGRAM_VERTICAL_SHIFT);
+    const translateY = (isWindowView ? initialWidth / 15 : margin.top) + extraTop;
+    // #RD END
     // #RD END
 
     const g = svg.append('g');
@@ -1739,20 +1797,20 @@ function Visualization(props) {
         // #RD START
         // Grows past the default height when the current amino-acid label
         // selection needs more lanes than the default margins provide room for,
-        // instead of assuming a fixed height sized for only a few lanes. Also
-        // grows by DIAGRAM_VERTICAL_SHIFT (see its own definition above) so the
-        // lowered spine's extra vertical offset is real reserved space, not
-        // overflow:visible bleed past the SVG's own declared box - genuinely
-        // clipped in exports otherwise, same as the lane-space case above.
-        // Also grows by PROTEIN_WINDOW_CARD_CLEARANCE (see its own definition
-        // above) - pure reserved bottom padding, unrelated to the diagram's
-        // own content, that exists only to push the Protein Window Input card
-        // further down the page.
+        // instead of assuming a fixed height sized for only a few lanes. No
+        // longer adds DIAGRAM_VERTICAL_SHIFT (removed - see margin.top/
+        // translateY above); `height` itself is now the real, uncapped window
+        // height (VISUALIZATION_HEIGHT_CAP removed in App.jsx), so
+        // margin.top already reserves the right amount of space at the top
+        // without a separate additive term. Still grows by
+        // PROTEIN_WINDOW_CARD_CLEARANCE (see its own definition above) - pure
+        // reserved bottom padding, unrelated to the diagram's own content,
+        // that exists only to push the Protein Window Input card further
+        // down the page.
         height={`${
           height +
           fullExtraSpace.extraTop +
           fullExtraSpace.extraBottom +
-          DIAGRAM_VERTICAL_SHIFT +
           PROTEIN_WINDOW_CARD_CLEARANCE
         }`}
         // #RD END

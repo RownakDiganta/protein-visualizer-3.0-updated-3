@@ -23,7 +23,8 @@ const { AMINO_ACIDS } = constants;
 
 const { getProteins } = parser;
 // one-time command to setup and activate the virtual environemnt script: ./venv/Scripts/activate
-// #RD START
+// #RD OLD CODE
+// const VISUALIZATION_HEIGHT_CAP = 600;
 // The Visualization component centers the protein spine at roughly half of
 // whatever `height` it's given (see SULFIDE_POS = innerHeight/2 + ... in
 // Visualization/index.js), and sizes its own <svg> to that same `height`.
@@ -33,13 +34,23 @@ const { getProteins } = parser;
 // whole protein diagram down the page; no amount of trimming margins above
 // it (search bar, Legend panel) could ever compensate for that, since those
 // are page-level spacing and this is the SVG's own internal coordinate
-// space. Visualization's own default prop for `height` (500, see its
-// defaultProps) already establishes what this component considers a normal,
-// non-viewport-scaled size - VISUALIZATION_HEIGHT_CAP caps at a similar, more
-// generous value instead of the raw viewport height, while still shrinking
-// further on genuinely short viewports so nothing gets clipped there.
-const VISUALIZATION_HEIGHT_CAP = 600;
-// #RD END
+// space. That reasoning was sound AT THE TIME - it was fixing a real problem
+// - but the fix was a workaround for problems that have since been fixed
+// properly: Visualization/index.js used to have duplicated per-view geometry
+// and a frozen (mount-only) width source, so clamping the one number that
+// fed both views' layout was the only lever available. Now that geometry is
+// single-sourced from a live, reactive width/height (see windowSize below)
+// and DIAGRAM_HORIZONTAL_MARGIN_LEFT/_RIGHT already scale with width
+// instead of assuming a fixed viewport, the cap is no longer masking a
+// layout bug - it's just preventing this app's vertical position from
+// matching Murphy's, whose own margin.top = height/15 is deliberately
+// proportional to the REAL, uncapped window height (see
+// murphy/src/components/Visualization/index.js and murphy/src/App.jsx,
+// reference only). Per feedback, the goal is for the diagram to sit where
+// Murphy's sits, which is a height-proportional position by design - a cap
+// makes that impossible at any height other than the one it happens to
+// equal, so it's removed rather than retuned.
+// #RD END OLD CODE
 
 function App() {
   const ToCaptureRef = React.useRef();
@@ -83,10 +94,13 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  const visualizationHeight = Math.min(
-    windowSize.height,
-    VISUALIZATION_HEIGHT_CAP
-  );
+  // #RD START
+  // Was Math.min(windowSize.height, VISUALIZATION_HEIGHT_CAP) - see the
+  // removed constant's comment above for why the cap came off. Passed
+  // straight through now, so Visualization's own margin.top = height/15
+  // (see Visualization/index.js) is proportional to the REAL window height,
+  // matching Murphy's mechanism instead of a clamped approximation of it.
+  const visualizationHeight = windowSize.height;
   // #RD END
 
   const updateScaleFactor = (val) => {
