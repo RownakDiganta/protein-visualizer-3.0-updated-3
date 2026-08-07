@@ -177,7 +177,64 @@ function Visualization(props) {
     bottom: height / 15,
     left: initialWidth / 10
   };
-  const innerHeight = height - margin.top - margin.bottom;
+  // #RD START
+  // Was `height - margin.top - margin.bottom` (Murphy's own formula -
+  // margin.top/bottom = height/15 each). That formula is ALGEBRAICALLY
+  // INERT for where the bar actually lands on the page: translateY used to
+  // equal margin.top, and the bar's local y was innerHeight/2 = (height -
+  // 2*margin.top)/2 = height/2 - margin.top - the margin.top terms cancel,
+  // so the bar always sat at (group origin) + height/2 no matter what
+  // margin.top's own divisor was. Per feedback ("move the diagram UP so it
+  // overlaps the left Legend panel, the way Murphy's does"), the bar needs
+  // to sit much higher up the page than height/2 gets it - margin.top's
+  // divisor can't do that (it cancels), so innerHeight is now driven
+  // directly by a dedicated ratio instead, decoupled from margin.top/bottom
+  // (both left unchanged above - margin.left/margin.right are still used
+  // for horizontal geometry, untouched by this).
+  //
+  // DIAGRAM_VERTICAL_RATIO expresses the bar's position within its own
+  // drawing group as a fraction of the real viewport height, the same
+  // "Murphy ratio" shape as his own margin.left = width/10 (a fraction of
+  // viewport size, not a fixed pixel) - so it scales correctly at every
+  // window height instead of only being correct at the one height it was
+  // tuned against. translateY (below) no longer adds margin.top on top of
+  // this, so innerHeight/2 alone is now the bar's full local offset from
+  // the drawing group's own origin.
+  //
+  // Value derived empirically against this app's own actual measured
+  // layout (svgTop, Legend panel position, search-bar position - see the
+  // measurements in this turn's report) rather than solved purely
+  // algebraically, since svgTop itself is an affine (not pure-ratio)
+  // function of height (a fixed part from the AppBar/search-form's own
+  // rendered size, plus a proportional part from .App-searchbar's 12vh) -
+  // chosen so the bar clears the search box by the required 40px at the
+  // shortest tested height (700px) even under maximum label compression,
+  // while landing as high as possible (closest to/overlapping the Legend
+  // panel) at every other tested height.
+  const DIAGRAM_VERTICAL_RATIO = 0.18;
+  // #RD START
+  // Capped, same shape as DIAGRAM_HORIZONTAL_MARGIN_LEFT/_RIGHT's own cap
+  // (Math.min(margin.left, 146)) above: a value proportional to height will
+  // always eventually drift away from the Legend panel's fixed, non-
+  // proportional position at SOME height, for any ratio - svgTop itself
+  // also grows with height (the 12vh search-bar term), so even a capped
+  // local offset doesn't hold the bar perfectly flat, but capping keeps it
+  // from drifting further once past the reference height instead of
+  // growing without bound. VERTICAL_RATIO_REFERENCE_HEIGHT (700) is the
+  // shortest height this was verified against - the cap is the ratio's own
+  // output AT that height, so heights at or below 700 are completely
+  // unaffected by the cap (identical to the uncapped formula, preserving
+  // the exact 64.68px-above-the-40px-floor margin measured there), while
+  // taller heights stop growing past that same value instead of pushing
+  // the bar further from the Legend the way an uncapped ratio would.
+  const VERTICAL_RATIO_REFERENCE_HEIGHT = 700;
+  const CAPPED_DIAGRAM_LOCAL_OFFSET =
+    DIAGRAM_VERTICAL_RATIO * VERTICAL_RATIO_REFERENCE_HEIGHT;
+  const innerHeight =
+    2 *
+    Math.min(DIAGRAM_VERTICAL_RATIO * height, CAPPED_DIAGRAM_LOCAL_OFFSET);
+  // #RD END
+  // #RD END
   const SULFIDE_POS = innerHeight / 2 + SPINE_HEIGHT / 2;
   const SULFIDE_BOND_LENGTH = 40;
   const SULFIDE_ATOM_OFFSET = 20;
@@ -421,15 +478,112 @@ function Visualization(props) {
   const belowBandMap = buildTypeBandMap(
     selectedAminoAcids.filter((key) => !isAboveStyleType(key))
   );
+  // #RD START
+  // Targets the topmost above-label's ACTUAL rendered position, not the
+  // computeRequiredLabelSpace() space-BUDGET heuristic the previous version
+  // of this clamp used - per feedback, that budget (baseOffset + numBands*
+  // laneGap + a generic 20px buffer) left ~25px of real, usable space
+  // unclaimed, because it doesn't match attachAminoAcidLabels' own "above"
+  // formula: `attachLabelText(x - 4, SULFIDE_POS - (y + 10))` (a fixed
+  // extra 10px past each label's connector length), and because an SVG
+  // <text>'s `dy` sets its BASELINE, not the visual glyph top that
+  // getBoundingClientRect() (and the eye) measures - a bold 1rem label's
+  // glyph top sits roughly AMINO_LABEL_FONT_ASCENT_ESTIMATE px above that
+  // baseline. Both were real, but neither was in the old budget, so the
+  // clamp stopped compressing well before it needed to.
+  //
+  // Solving attachAminoAcidLabels' own formula for "topmost label's glyph
+  // top sits >= TARGET_SEARCHBAR_CLEARANCE px below the search box" (the
+  // same SPINE_HEIGHT/2-vs-.svg-wrapper-margin-top cancellation as before
+  // still applies - see the removed comment this replaced) gives the
+  // topmost band's target reach directly, which then gives the scale
+  // needed to hit it - no independent "available space" budget in between
+  // to drift out of sync with the real rendering again.
+  const MIN_SEARCHBAR_GAP = 40;
+  // Empirically measured (real getBoundingClientRect() top vs the formula's
+  // own baseline math, bold 1rem Arial/Helvetica - see index.scss) - not a
+  // CSS-derived exact value, since font ascent isn't queryable without a
+  // live DOM measurement. TARGET_SEARCHBAR_CLEARANCE adds 3px on top of the
+  // true MIN_SEARCHBAR_GAP as a small self-protective margin against this
+  // estimate's own imprecision, so a few px of ascent measurement error
+  // still can't push the ACTUAL clearance under the 40px hard minimum.
+  const AMINO_LABEL_FONT_ASCENT_ESTIMATE = 14;
+  const TARGET_SEARCHBAR_CLEARANCE = MIN_SEARCHBAR_GAP + 3;
+  const AMINO_LABEL_COMPRESSION_FLOOR = 0.5;
+  const numAboveBands = aboveBandMap.size;
+  // Reach (from the spine) of the topmost band at the UNCOMPRESSED (scale=1)
+  // spacing - what aboveCompressionScale below is a fraction/multiple of.
+  const uncompressedTopmostReach =
+    AMINO_ACID_BASE_CONNECTOR_LENGTH +
+    Math.max(0, numAboveBands - 1) * AMINO_ACID_LANE_GAP;
+  // y (local, from the spine) the topmost band needs to reach for its own
+  // glyph top to land exactly TARGET_SEARCHBAR_CLEARANCE below the search
+  // box - see attachLabelText's "+ 10" and the ascent estimate above; "+ 5"
+  // is the SPINE_HEIGHT/2(15)-vs-.svg-wrapper-margin-top(15) cancellation
+  // minus attachLabelText's own "- 10", both already explained above.
+  const targetTopmostReach =
+    numAboveBands === 0
+      ? 0
+      : SULFIDE_POS +
+        5 -
+        AMINO_LABEL_FONT_ASCENT_ESTIMATE -
+        TARGET_SEARCHBAR_CLEARANCE;
+  // No longer capped at 1 - per feedback, this should EXPAND past the
+  // original spacing whenever there's more room than that needs, not stop
+  // at "no compression" as its ceiling. Still floors at
+  // AMINO_LABEL_COMPRESSION_FLOOR (never compresses past 50% of normal
+  // spacing, so bands stay visually distinct) - if even the floor doesn't
+  // reach the required clearance, spacing stays AT the floor and the
+  // shortfall is reported via console.warn below rather than silently
+  // letting labels overlap the search bar; computeExtraVerticalSpace's
+  // existing extraTop safety net (unchanged, below) still absorbs that
+  // specific residual case by growing the SVG slightly.
+  const aboveCompressionScale =
+    numAboveBands === 0
+      ? 1
+      : Math.max(
+          AMINO_LABEL_COMPRESSION_FLOOR,
+          targetTopmostReach / uncompressedTopmostReach
+        );
+  const EFFECTIVE_ABOVE_BASE_CONNECTOR_LENGTH =
+    AMINO_ACID_BASE_CONNECTOR_LENGTH * aboveCompressionScale;
+  const EFFECTIVE_ABOVE_LANE_GAP = AMINO_ACID_LANE_GAP * aboveCompressionScale;
+
+  if (numAboveBands > 0 && aboveCompressionScale === AMINO_LABEL_COMPRESSION_FLOOR) {
+    // Reached the floor - check against the TRUE hard minimum (not the
+    // padded target) to see whether it's a genuine collision worth
+    // reporting, using the same actual-rendering formula as above.
+    const topmostReachAtFloor =
+      AMINO_LABEL_COMPRESSION_FLOOR * uncompressedTopmostReach;
+    const actualGapAtFloor =
+      SULFIDE_POS +
+      5 -
+      AMINO_LABEL_FONT_ASCENT_ESTIMATE -
+      topmostReachAtFloor;
+    if (actualGapAtFloor < MIN_SEARCHBAR_GAP) {
+      // Reported, not silently absorbed - see extraTop's own comment above.
+      console.warn(
+        `Visualization -> even the minimum label spacing (${Math.round(
+          AMINO_LABEL_COMPRESSION_FLOOR * 100
+        )}% of normal) leaves only ~${Math.round(
+          actualGapAtFloor
+        )}px of clearance above the search bar (need ${MIN_SEARCHBAR_GAP}px) - the diagram's reserved space will grow slightly so labels don't visually overlap the search bar.`
+      );
+    }
+  }
+  // #RD END
+
   // Distance from the spine to a given band, in the SAME units/scale as the
-  // amino-acid lane system (AMINO_ACID_BASE_CONNECTOR_LENGTH +
-  // lane * AMINO_ACID_LANE_GAP) - used by the modification attach functions
-  // below so their whole label/stem/marker group sits at the same height as
-  // an amino acid type would in the same band, instead of each modification
-  // type having its own independent fixed height (which is what let
-  // multiple modification types collide with each other before).
+  // amino-acid lane system (now the COMPRESSED base connector length/lane
+  // gap, above, so a modification type's band sits at the same height an
+  // amino acid type would in the same band under the same compression) -
+  // used by the modification attach functions below so their whole
+  // label/stem/marker group sits at the same height as an amino acid type
+  // would in the same band, instead of each modification type having its
+  // own independent fixed height (which is what let multiple modification
+  // types collide with each other before).
   const bandReach = (lane) =>
-    AMINO_ACID_BASE_CONNECTOR_LENGTH + lane * AMINO_ACID_LANE_GAP;
+    EFFECTIVE_ABOVE_BASE_CONNECTOR_LENGTH + lane * EFFECTIVE_ABOVE_LANE_GAP;
   // #RD END
 
   // #RD START
@@ -511,24 +665,51 @@ function Visualization(props) {
     // Both views now share the exact same layout function AND the exact same
     // band maps (aboveBandMap/belowBandMap, built once above) - no more
     // isWindowView branch on which algorithm or which config to use.
-    const fullLayoutConfig = {
+    // #RD START
+    // Split into an above/below pair instead of one shared config - the
+    // above side now uses EFFECTIVE_ABOVE_BASE_CONNECTOR_LENGTH/
+    // EFFECTIVE_ABOVE_LANE_GAP (the dynamically-compressed values, see
+    // their own comment above) since that's the side with the search-bar
+    // clearance constraint; the below side keeps the original, uncompressed
+    // AMINO_ACID_BASE_CONNECTOR_LENGTH/AMINO_ACID_LANE_GAP, since nothing
+    // below the spine has that constraint. Applied identically to BOTH
+    // views (full-length and window) - each still calls
+    // layoutAminoAcidLabelsByType with the SAME aboveLayoutConfig/
+    // belowLayoutConfig here, so a compressed band lands at the same
+    // height in both, exactly like the uncompressed bands already did.
+    const aboveLayoutConfig = {
+      baseConnectorLength: EFFECTIVE_ABOVE_BASE_CONNECTOR_LENGTH,
+      laneGap: EFFECTIVE_ABOVE_LANE_GAP
+    };
+    const belowLayoutConfig = {
       baseConnectorLength: AMINO_ACID_BASE_CONNECTOR_LENGTH,
       laneGap: AMINO_ACID_LANE_GAP
     };
+    // #RD END
     const aboveLayout = layoutAminoAcidLabelsByType({
       labels: aboveLabels,
       side: 'above',
       bandMap: aboveBandMap,
-      ...fullLayoutConfig
+      ...aboveLayoutConfig
     });
     const belowLayout = layoutAminoAcidLabelsByType({
       labels: belowLabels,
       side: 'below',
       bandMap: belowBandMap,
-      ...fullLayoutConfig
+      ...belowLayoutConfig
     });
 
-    const requiredSpaceConfig = {
+    // #RD START
+    // Each side's required-space calc now uses that SAME side's own config
+    // (compressed above, original below) - previously both sides shared one
+    // config, which was correct back when both used identical spacing.
+    // #RD END
+    const requiredAboveSpaceConfig = {
+      laneGap: EFFECTIVE_ABOVE_LANE_GAP,
+      baseOffset: EFFECTIVE_ABOVE_BASE_CONNECTOR_LENGTH,
+      buffer: AMINO_LABEL_SAFETY_BUFFER
+    };
+    const requiredBelowSpaceConfig = {
       laneGap: AMINO_ACID_LANE_GAP,
       baseOffset: AMINO_ACID_BASE_CONNECTOR_LENGTH,
       buffer: AMINO_LABEL_SAFETY_BUFFER
@@ -544,11 +725,11 @@ function Visualization(props) {
       bandMap.size > 0 ? [{ lane: bandMap.size - 1 }] : [];
     const requiredAboveSpace = computeRequiredLabelSpace(
       [...aboveLayout, ...bandMapSpaceEntry(aboveBandMap)],
-      requiredSpaceConfig
+      requiredAboveSpaceConfig
     );
     const requiredBelowSpace = computeRequiredLabelSpace(
       [...belowLayout, ...bandMapSpaceEntry(belowBandMap)],
-      requiredSpaceConfig
+      requiredBelowSpaceConfig
     );
 
     const maxLanesAbove = aboveBandMap.size;
@@ -1570,14 +1751,18 @@ function Visualization(props) {
     // provides, so dense selections get real reserved layout space (not just
     // overflow:visible bleed) instead of a fixed height that assumes few lanes.
     // #RD START
-    // No longer adds a fixed DIAGRAM_VERTICAL_SHIFT on top of margin.top for
-    // the full-length view - per feedback, margin.top (= height/15, fed by
-    // the real uncapped window height now that VISUALIZATION_HEIGHT_CAP is
-    // gone, see App.jsx) already IS Murphy's own vertical mechanism, so a
-    // second additive shift would just reintroduce a fixed-height
-    // approximation on top of a now-correct proportional formula.
+    // Full view no longer adds margin.top here at all (window view's own
+    // initialWidth/15 term is untouched, still Murphy's own formula for
+    // that view). margin.top used to be algebraically inert for the bar's
+    // final position anyway (see innerHeight's own comment above - it
+    // canceled against innerHeight/2), so dropping it changes nothing about
+    // where the bar lands; it's removed here only so translateY's own
+    // baseline is a clean 0 (plus extraTop, the existing last-resort
+    // safety net), matching the intent that DIAGRAM_VERTICAL_RATIO (via
+    // innerHeight, above) is now the ONE thing controlling the bar's
+    // vertical position, not two formulas that happened to cancel out.
     const { extraTop } = isWindowView ? windowExtraSpace : fullExtraSpace;
-    const translateY = (isWindowView ? initialWidth / 15 : margin.top) + extraTop;
+    const translateY = (isWindowView ? initialWidth / 15 : 0) + extraTop;
     // #RD END
     // #RD END
 
