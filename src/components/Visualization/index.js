@@ -272,31 +272,46 @@ function Visualization(props) {
   // value is what moves the card+lower-diagram block as a single unit
   // without touching the spacing between the two of THEM.
   //
-  // Retuned from 300 to 76, measured against Murphy's reference deployment
-  // (murphy/src/components/Visualization/index.js, run locally for
-  // comparison) now that the upper diagram's own height is no longer capped
-  // - removing VISUALIZATION_HEIGHT_CAP and DIAGRAM_VERTICAL_SHIFT both
-  // changed how tall the upper #svg is, so the old value (tuned against the
-  // capped height) no longer lands in the same place.
+  // Retuned from 76 to -148, measured directly from the live DOM (both this
+  // app and Murphy's reference deployment run locally side by side, P04439,
+  // getBoundingClientRect() + scrollY) rather than re-derived algebraically -
+  // the previous height/2-cancellation derivation (see the comment this
+  // replaced) relied on THIS app's own backbone/label position scaling with
+  // `height` at the same rate Murphy's does, which was true when it was
+  // written but stopped being true once .App-searchbar's margin-top was
+  // switched from a proportional 12vh to a fixed 76px (App.scss) - the upper
+  // diagram (bar, labels, brackets) is now height-INVARIANT, so the height/2
+  // terms that used to cancel on both sides of that equation no longer do.
   //
-  // Murphy's own (cardTop - backboneTop) measured cleanly as EXACTLY
-  // height/2 + 100 at every tested window height (700/900/1200/1600px) -
-  // his own translateY/backboneY = height/2 (margin.top=height/15 combined
-  // with his innerHeight math simplifies to exactly that), and his card's
-  // `top: 100px` relative-position hack (ProteinWindow/index.scss, not
-  // reproduced here per the decision to keep this app's shared
-  // .window-section container instead) adds a further fixed 100. Working
-  // backward through THIS app's own formula - (height + clearance) + 24
-  // (.window-section's margin-top) - margin.top - innerHeight/2, which
-  // simplifies to height/2 + clearance + 24 - setting that equal to
-  // Murphy's height/2 + 100 gives clearance = 100 - 24 = 76, independent of
-  // height (the height/2 terms cancel on both sides), so this single fixed
-  // value reproduces Murphy's card-to-backbone relationship at every window
-  // height, not just the one it was measured against. Confirmed the
-  // pre-retune value of 300 back-calculated to exactly the same formula
-  // (height/2 + 300 + 24) against the actual pre-retune measurement, so the
-  // formula itself isn't in question - only the constant fed into it.
-  const PROTEIN_WINDOW_CARD_CLEARANCE = 76;
+  // Also switched the anchor from bar-center to bracket-bottom (the
+  // .sulfide-labels/.sulfide-labels--pos C-label text, which hangs lowest of
+  // anything in the upper diagram) per feedback - this app's label-band and
+  // bracket geometry differs from Murphy's, so a bar-center match doesn't
+  // land the same VISIBLE gap a bracket-bottom match does.
+  //
+  // Measured bracket-bottom -> card-top at h=700: mine = 591px (clearance
+  // 76), Murphy's = 367px. This constant is a flat, height-independent
+  // addition to #svg's own declared height (see the height attr below), so
+  // it can only shift this app's gap by a constant amount at every height -
+  // -148 = 76 - (591 - 367) lands the two exactly together at h=700 (this
+  // app's own established reference height - see DIAGRAM_VERTICAL_RATIO
+  // above), same as before.
+  //
+  // UNLIKE the previous version of this constant, this one can only match
+  // Murphy's gap at that one reference height, not at every height: this
+  // app's gap now grows 1:1 with `height` (since #svg's declared height
+  // still includes the raw `height` prop directly, even though the content
+  // inside it stopped moving), while Murphy's own gap grows at a shallower
+  // ~0.5:1 (his bar/labels still scale with height the old way). Measured
+  // (mine / Murphy's) bracket-bottom -> card-top with this constant applied:
+  // h=700 367/367 (exact), h=900 567/467 (+100), h=1200 867/617 (+250),
+  // h=1600 1267/817 (+450) - the two diverge by ~0.5px per px of height away
+  // from 700 in either direction. Closing that gap fully would mean
+  // decoupling #svg's declared height from raw `height` the same way the
+  // diagram's own position already was, which is a structural change beyond
+  // this one constant - flagging here rather than silently presenting a
+  // 700px-only fix as if it held everywhere.
+  const PROTEIN_WINDOW_CARD_CLEARANCE = -148;
   // #RD END
 
   // #RD START
@@ -1751,18 +1766,44 @@ function Visualization(props) {
     // provides, so dense selections get real reserved layout space (not just
     // overflow:visible bleed) instead of a fixed height that assumes few lanes.
     // #RD START
-    // Full view no longer adds margin.top here at all (window view's own
-    // initialWidth/15 term is untouched, still Murphy's own formula for
-    // that view). margin.top used to be algebraically inert for the bar's
-    // final position anyway (see innerHeight's own comment above - it
-    // canceled against innerHeight/2), so dropping it changes nothing about
-    // where the bar lands; it's removed here only so translateY's own
-    // baseline is a clean 0 (plus extraTop, the existing last-resort
-    // safety net), matching the intent that DIAGRAM_VERTICAL_RATIO (via
-    // innerHeight, above) is now the ONE thing controlling the bar's
-    // vertical position, not two formulas that happened to cancel out.
+    // Full view no longer adds margin.top here at all. margin.top used to
+    // be algebraically inert for the bar's final position anyway (see
+    // innerHeight's own comment above - it canceled against innerHeight/2),
+    // so dropping it changes nothing about where the bar lands; it's
+    // removed here only so translateY's own baseline is a clean 0 (plus
+    // extraTop, the existing last-resort safety net), matching the intent
+    // that DIAGRAM_VERTICAL_RATIO (via innerHeight, above) is now the ONE
+    // thing controlling the bar's vertical position, not two formulas that
+    // happened to cancel out.
+    //
+    // Window view's own top-offset divisor - was a bare initialWidth/15
+    // (Murphy's original formula, untouched until now). Per feedback, the
+    // gap between the Protein Window Input card's bottom and this view's
+    // topmost label measured a constant 117.33px at every tested window
+    // HEIGHT (this term is driven by initialWidth, not height, so it never
+    // varied with height to begin with) against an 80px target. Of that
+    // 117.33px, only 12px is .window-section's own CSS `gap` - the actual
+    // box-model spacing between the card and the SVG wrapper; the other
+    // 105.33px (93.33 = 1400/15 at the measured width, plus a fixed ~12px
+    // from SULFIDE_POS vs. the topmost band's own local reach inside the
+    // SVG) comes from THIS term. Shrinking the CSS gap alone could only
+    // ever claim up to its own 12px, nowhere near the needed 37.33px
+    // reduction - this term is the real lever, not .window-section's gap.
+    // Kept proportional to initialWidth (matching Murphy's own width-driven
+    // mechanism, and this app's horizontal-margin pattern) rather than
+    // switched to a fixed pixel, so it still reacts correctly to window
+    // WIDTH changes - only the divisor changed, landing the new term at
+    // exactly 56px at the measured width (1400/25), closing the internal
+    // offset from 105.33 to 68 and the total measured gap from 117.33 to 80
+    // exactly. Translates the WHOLE window-view drawing group by the same
+    // amount, so the lower diagram's own internal spacing (label band,
+    // stems, bar, brackets) is unaffected - only where the group as a whole
+    // starts moves.
+    const WINDOW_VIEW_TOP_OFFSET_DIVISOR = 25;
     const { extraTop } = isWindowView ? windowExtraSpace : fullExtraSpace;
-    const translateY = (isWindowView ? initialWidth / 15 : 0) + extraTop;
+    const translateY =
+      (isWindowView ? initialWidth / WINDOW_VIEW_TOP_OFFSET_DIVISOR : 0) +
+      extraTop;
     // #RD END
     // #RD END
 
