@@ -122,7 +122,7 @@ function Introduction(props) {
             </Link>
 
             <Typography variant="body1">
-              Tutorial on how to use the visualizer 3.0:&nbsp;
+              Tutorial on how to use the visualizer 2.0:&nbsp;
               <Link href="https://www.youtube.com/watch?v=q8QaIdRW02g">
                 Youtube Video
               </Link>
