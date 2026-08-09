@@ -5,3 +5,4 @@ build/
 .env.local
 npm-debug.log*
 coverage/
+NOTES.md

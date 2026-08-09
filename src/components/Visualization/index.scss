@@ -2,28 +2,7 @@
 // Text/label styling for disulfide and glycosylation annotations, plus
 // layout for the main SVG wrapper and the offscreen window-view SVG.
 
-// #RD START
-// Every letter+position-number label (disulfide/free-cysteine "C", glyco/
-// sequon "N"/"O", and selected amino-acid letters) previously had no explicit
-// font-family, so it fell back to the page's inherited system font stack
-// (-apple-system, BlinkMacSystemFont, 'Segoe UI', ... - see index.css). That
-// stack is meaningless outside an actual browser: Canvg (the SVG-to-canvas
-// rasterizer behind "Export Full Protein as Image"/PNG) can't resolve any of
-// those OS-specific font tokens and silently substitutes its own default,
-// which measured visibly WIDER than the browser's rendering for the same
-// text - confirmed by comparing the live DOM's letter/number bounding boxes
-// (near-zero gap) against the actual exported PNG (a clearly visible gap) for
-// the same dx-based coordinates. That font mismatch, not the coordinates
-// themselves, was the real reason the exported number sat farther from its
-// letter than it did on screen. A single explicit, universally-available font
-// stack fixes this at the root for every export path (PNG via Canvg, PDF via
-// html2canvas, and the raw downloaded SVG) simultaneously, since all three
-// serialize/rasterize this exact same live SVG (see captureFullImage/
-// captureScreenshot/captureFullSVG in App.jsx) - no separate export-mode
-// value is needed here, because the mismatch was never really about the
-// coordinates, it was about which font each renderer picked for them.
 $label-font-family: Arial, Helvetica, sans-serif;
-// #RD END
 
 .sulfide-labels {
   font-size: 1.0rem;
@@ -36,25 +15,6 @@ $label-font-family: Arial, Helvetica, sans-serif;
   }
 }
 
-// #RD START
-// Amino-acid selection labels get their own classes (not .sulfide-labels, which
-// disulfide/sequon/cysteine labels also use) so any future amino-acid-specific
-// styling only affects these lane-packing labels, not any other feature's
-// labels.
-//
-// #RD START
-// Was a white text-halo (paint-order: stroke + stroke: white + stroke-width)
-// meant to keep letters/numbers readable over a connector line or another
-// nearby label in a dense, multi-lane layout - removed per feedback that it
-// rendered as an unwanted white outline/box around each glyph in every export
-// path (PDF, Full/Window Image, Full/Window SVG). All three export paths
-// rasterize/serialize this exact same live SVG (see captureFullImage/
-// captureScreenshot/captureFullSVG/captureWindowSVG/captureWindowsImage in
-// App.jsx - createStyleElementFromCSS inlines the live stylesheet rules
-// verbatim, it doesn't add its own), so removing the rule here removes the
-// halo everywhere at once rather than needing an export-specific override.
-// Removed entirely rather than set to a transparent/0-width stroke - a
-// transparent stroke can still leave a rendering seam in some rasterizers.
 .amino-acid-label {
   font-size: 1.0rem;
   font-weight: bold;
@@ -65,8 +25,6 @@ $label-font-family: Arial, Helvetica, sans-serif;
     font-family: $label-font-family;
   }
 }
-// #RD END
-// #RD END
 
 .glyco-labels {
   font-size: 1.0rem;
@@ -81,29 +39,11 @@ $label-font-family: Arial, Helvetica, sans-serif;
   }
 }
 
-// #RD START
-// Was `position: relative; top: -100px; z-index: -1000;` - a hack that
-// pulled the window SVG up and behind everything else, paired with
-// ProteinWindow's own `.window--wrapper { top: 100px; }` (see
-// ProteinWindow/index.scss) so the two would visually meet in the middle.
-// That 200px combined pull was tuned for a window SVG tall enough (the old,
-// near-viewport-height default) that it never actually reached the input
-// panel above it. Once the SVG's base height was capped to a sane value
-// (see VISUALIZATION_HEIGHT_CAP in App.jsx), the same fixed pull started
-// dragging the window SVG's own label region up underneath the input panel,
-// hiding labels behind it (z-index: -1000). Normal flow inside
-// .window-section (see Visualization/index.js) replaces both hacks -
-// .windowSvg--wrapper now only needs to size itself to its content.
 .windowSvg--wrapper {
   display: block;
   width: 100%;
 }
 
-// Wraps the Protein Window Input panel and the window SVG together, in
-// normal document flow, directly below the full-length view - see
-// Visualization/index.js. margin-top is the "moderate" gap from the
-// full-length diagram above; gap is the "small" gap between the input panel
-// and the window visualization itself.
 .window-section {
   display: flex;
   flex-direction: column;
@@ -112,7 +52,6 @@ $label-font-family: Arial, Helvetica, sans-serif;
   margin-top: 24px;
   gap: 12px;
 }
-// #RD END
 
 .svg-wrapper{
   display: flex;
@@ -120,20 +59,6 @@ $label-font-family: Arial, Helvetica, sans-serif;
   margin-top: 15px;
 }
 
-// #RD START
-// Applied instead of (never together with) the bare .svg-wrapper above, only for
-// the default view (scaleFactor === 1 and fullScale off - see index.js). The base
-// rule above never set justify-content, so on the flex main axis (horizontal) the
-// <svg> defaulted to flex-start (left-aligned) rather than being centered in the
-// wrapper. width: 100vw makes the wrapper span the true, live viewport width
-// (matching the width: 100vw convention already used by .App-header/.App-canvas
-// in App.scss) regardless of any mismatch between the SVG's own rendered width
-// and the current viewport, so justify-content: center always has real free
-// space to work with. Deliberately NOT applied when horizontally scaled
-// (scaleVisualization) or in Full Scale mode, since those intentionally render
-// the protein flush-left with horizontal scrolling so the start of the sequence
-// stays at the natural scroll position - centering an overflowing SVG there
-// would risk scrolling the NH2 terminus off-screen.
 .svg-wrapper--centered {
   display: flex;
   align-items: center;
@@ -141,4 +66,3 @@ $label-font-family: Arial, Helvetica, sans-serif;
   width: 100vw;
   margin-top: 15px;
 }
-// #RD END

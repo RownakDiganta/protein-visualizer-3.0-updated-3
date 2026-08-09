@@ -1,5 +1,4 @@
 // src/components/Visualization/labelPlacement.test.js
-// #RD START
 /* eslint-disable no-undef */
 import {
   layoutAminoAcidLabels,
@@ -414,11 +413,6 @@ describe('layoutAminoAcidLabelsByType (full-length overview: one compact level p
   });
 });
 
-// #RD START
-// Regression coverage for Professor Sun's "I did not see the W is leveled"
-// report: a direct, unmistakable check (in her own terms) that every W label
-// in the full-length view sits on one row with one connector length, using
-// the exact assertion shape she asked for.
 describe('W-specific leveling regression (full-length view)', () => {
   test('all full-length W labels share exactly one Y-coordinate, even when densely packed', () => {
     const labels = [
@@ -447,13 +441,8 @@ describe('W-specific leveling regression (full-length view)', () => {
     const layout = layoutAminoAcidLabelsByType({ labels });
     const wLabels = layout.filter((label) => label.aminoAcid === 'W');
 
-    // Connector length is derived purely from `y` at render time
-    // (Visualization/index.js: y2 = SULFIDE_POS +/- y) - one y means one
-    // connector length. lane is the other value the render path could key
-    // off of, so it's checked too.
     expect(new Set(wLabels.map((label) => label.y)).size).toBe(1);
     expect(new Set(wLabels.map((label) => label.lane)).size).toBe(1);
-    // No sub-lane concept exists in the full-length by-type layout at all.
     wLabels.forEach((label) => expect(label.subLane).toBeUndefined());
   });
 
@@ -488,12 +477,6 @@ describe('W-specific leveling regression (full-length view)', () => {
   });
 
   test('layoutAminoAcidLabels (collision-aware, per-occurrence) still lanes a dense W cluster across multiple lanes, tested in isolation', () => {
-    // Visualization/index.js no longer calls this function for the window
-    // view (both views now call layoutAminoAcidLabelsByType with a shared
-    // band map instead, so a type's tiering agrees between views - see
-    // buildTypeBandMap) - but the function itself is unchanged and still a
-    // real, exported, independently useful/testable collision-avoidance
-    // packer, so this test still covers ITS OWN behavior in isolation.
     const denseW = [
       { x: 100, text: 'W100', aminoAcid: 'W' },
       { x: 102, text: 'W102', aminoAcid: 'W' },
@@ -501,17 +484,10 @@ describe('W-specific leveling regression (full-length view)', () => {
     ];
     const windowLayout = layoutAminoAcidLabels({ labels: denseW, side: 'below' });
     const lanes = new Set(windowLayout.map((label) => label.lane));
-    // Dense, overlapping same-x-ish labels still get spread across multiple
-    // collision-avoidance lanes in the window view - that's correct, existing
-    // behavior and must not be "fixed" to match the full-length W level.
     expect(lanes.size).toBeGreaterThan(1);
   });
 });
 
-// The full selectable type list (Visualization/index.js's "Amino acids and
-// mods" panel: 20 amino-acid letters + 6 modification keys), used below to
-// prove buildTypeBandMap resolves a band for ANY of them, not just whichever
-// ones happen to appear in a hand-picked example.
 const ALL_AMINO_ACIDS = [
   'A', 'G', 'L', 'T', 'R', 'D', 'E', 'Q', 'V', 'S',
   'P', 'Y', 'I', 'K', 'W', 'H', 'M', 'F', 'C', 'N'
@@ -588,11 +564,6 @@ describe('buildTypeBandMap (shared type -> band resolution, both views)', () => 
 describe('layoutAminoAcidLabelsByType with an explicit shared bandMap (cross-view agreement)', () => {
   test('an explicit bandMap overrides the local first-encountered ordering', () => {
     const labels = [{ x: 10, text: 'A50', aminoAcid: 'A' }];
-    // Even though 'A' is the only (and therefore "first-encountered") type
-    // here, an explicit bandMap saying 'A' is band 2 must be respected -
-    // this is what lets a type keep the SAME band across two separate calls
-    // (e.g. the full view's and the window view's) even when one call's own
-    // local `labels` only contains a subset of the active types.
     const bandMap = buildTypeBandMap(['H', 'P', 'A']);
     const layout = layoutAminoAcidLabelsByType({ labels, bandMap });
     expect(layout[0].lane).toBe(2);
@@ -603,14 +574,11 @@ describe('layoutAminoAcidLabelsByType with an explicit shared bandMap (cross-vie
 
   test('two independent calls sharing one bandMap agree on every type\'s band - simulating the full and window views', () => {
     const bandMap = buildTypeBandMap(['E', 'A', 'P']);
-    // "Full view" call: has occurrences of all three types.
     const fullLabels = [
       { x: 10, text: 'E10', aminoAcid: 'E' },
       { x: 20, text: 'A20', aminoAcid: 'A' },
       { x: 30, text: 'P30', aminoAcid: 'P' }
     ];
-    // "Window view" call: only has an occurrence of one type (as if the
-    // other two types' residues fell outside the zoomed range).
     const windowLabels = [{ x: 25, text: 'A25', aminoAcid: 'A' }];
 
     const fullLayout = layoutAminoAcidLabelsByType({
@@ -638,4 +606,3 @@ describe('layoutAminoAcidLabelsByType with an explicit shared bandMap (cross-vie
     expect(layout[1].lane).toBe(1);
   });
 });
-// #RD END

@@ -1,92 +1,16 @@
 // src/components/Visualization/labelPlacement.js
-// #RD START
-// This module provides TWO label-layout strategies, used by different views in
-// Visualization/index.js:
-//
-// - layoutAminoAcidLabels(): collision-aware lane packing, used by the zoomed
-//   window view. Every label's rendered text width is estimated, treated as a
-//   horizontal interval around its x position, and packed into the first lane
-//   whose last-placed interval doesn't overlap it (a classic greedy
-//   interval/lane-packing algorithm, the same kind used for stacking overlapping
-//   calendar events). Labels are never dropped - a cluster too dense for existing
-//   lanes always gets a new lane instead of being hidden, filtered, or truncated.
-//
-// - layoutAminoAcidLabelsByType(): used by the full-length view. This project's
-//   visualization philosophy groups by amino-acid TYPE: every occurrence of the
-//   same selected amino acid (e.g. every W) shares exactly one fixed connector
-//   length and label height, while different selected amino acids (e.g. W vs L)
-//   occupy different fixed heights - see AMINO_ACID_BASE_CONNECTOR_LENGTH/
-//   AMINO_ACID_LANE_GAP below. The full-length view is an overview, not a
-//   detailed layout: labels are never staggered per-residue and never affected
-//   by collisions or density - a type's whole cluster (however dense) renders on
-//   its one level, with some text overlap accepted as the tradeoff for staying
-//   compact. Exact, non-overlapping positions are the zoomed window's job.
 
-// Nominal font size (px) used only for estimating label width - the actual letter
-// and position-number text use two real CSS font sizes (see index.scss), but a
-// single representative size is enough for the width heuristic below.
 export const AMINO_LABEL_FONT_SIZE = 14;
-// Average glyph width as a fraction of font size for the bold sans-serif label
-// text; used to estimate a label's rendered width from its character count
-// without needing a canvas/DOM text-measurement (which isn't reliably available
-// in the jsdom test environment) - see estimateLabelWidth().
 const AMINO_LABEL_AVG_CHAR_WIDTH_RATIO = 0.62;
-// Minimum horizontal gap required between two labels' estimated intervals before
-// they're considered non-overlapping and allowed to share a lane.
 export const AMINO_LABEL_HORIZONTAL_PADDING = 6;
-// Vertical distance between adjacent lanes - noticeably larger than the old
-// per-level growth, and constant (linear) rather than growing per lane, per the
-// requested "font size + 8 to 14px" guidance (14 + 14 = 28).
 export const AMINO_LABEL_LANE_GAP = 28;
-// Distance from the spine to lane 0, matching where labels sat before this change
-// (bond end was previously SULFIDE_POS +/- 50) so the common, uncrowded case looks
-// the same as before.
 export const AMINO_LABEL_BASE_OFFSET = 50;
-// Extra breathing room reserved beyond the last lane when sizing the SVG, so the
-// outermost label's own text/halo isn't flush against the edge.
 export const AMINO_LABEL_SAFETY_BUFFER = 20;
-// Soft, non-enforced reference point: lane counts at or under this are the
-// "typical" case. Real lane counts are never capped or truncated at this value -
-// it only triggers a console warning so unusually dense proteins are noticeable
-// during development; the SVG is still expanded to fit however many lanes are
-// actually required.
 export const AMINO_LABEL_MAX_VISIBLE_LANES = 12;
 
-/**
- * Estimate a label's rendered pixel width from its character count. Deterministic
- * and environment-independent (no canvas/DOM dependency), which also makes it
- * reliably unit-testable; CanvasRenderingContext2D.measureText would be more
- * precise but isn't reliably available under jsdom without an extra canvas-mock
- * dependency this project doesn't otherwise need.
- *
- * @param {string} text - the full label text, e.g. "W137", "K2750".
- * @param {number} fontSize
- * @returns {number}
- */
 export const estimateLabelWidth = (text, fontSize = AMINO_LABEL_FONT_SIZE) =>
   text.length * fontSize * AMINO_LABEL_AVG_CHAR_WIDTH_RATIO;
 
-/**
- * Collision-aware lane packing for a set of labels on ONE side (above or below
- * the spine). Every input label is always returned (never dropped): labels are
- * sorted by x (tie-broken by their original array index, for determinism), then
- * greedily assigned to the first lane whose rightmost occupied edge is far enough
- * to the left of the new label's left edge; a new lane is created only when no
- * existing lane has room.
- *
- * @param {Object} params
- * @param {Array<{x: number, text: string}>} params.labels - arbitrary extra
- *   fields (color, aminoAcid, position, ...) are preserved on the output.
- * @param {'above'|'below'} [params.side] - not used by the packing math itself
- *   (each call already only receives one side's labels), passed through onto the
- *   output for the caller's convenience.
- * @param {number} [params.fontSize]
- * @param {number} [params.horizontalPadding]
- * @param {number} [params.laneGap]
- * @param {number} [params.baseOffset]
- * @returns {Array} each input label plus { lane, y, estimatedWidth }, in the same
- *   order the labels were supplied in.
- */
 export const layoutAminoAcidLabels = ({
   labels,
   side,
@@ -96,13 +20,8 @@ export const layoutAminoAcidLabels = ({
   baseOffset = AMINO_LABEL_BASE_OFFSET
 }) => {
   const indexed = labels.map((label, index) => ({ ...label, _index: index }));
-  // Sort by rendered x-coordinate; ties broken by original index (stable and
-  // deterministic regardless of which amino acid contributed which label), so the
-  // same protein + selection always produces the same layout.
   indexed.sort((a, b) => a.x - b.x || a._index - b._index);
 
-  // laneRightEdge[lane] = right edge (x + halfWidth) of the last label placed in
-  // that lane.
   const laneRightEdge = [];
 
   const placed = indexed.map((label) => {
@@ -129,22 +48,10 @@ export const layoutAminoAcidLabels = ({
     };
   });
 
-  // Restore original input order (packing needed x-sorted order, but callers
-  // zipping this back with other per-label state expect the input order back)
-  // and drop the internal sort key.
   placed.sort((a, b) => a._index - b._index);
   return placed.map(({ _index, ...rest }) => rest);
 };
 
-/**
- * How much vertical pixel space (from the spine outward) a side's layout needs so
- * its farthest lane isn't clipped - used to grow the SVG/container dynamically
- * instead of assuming a fixed small number of lanes.
- *
- * @param {Array<{lane: number}>} layout - output of layoutAminoAcidLabels().
- * @param {Object} [config]
- * @returns {number} required pixels from the spine outward; 0 if layout is empty.
- */
 export const computeRequiredLabelSpace = (
   layout,
   {
@@ -159,52 +66,11 @@ export const computeRequiredLabelSpace = (
   }
   return baseOffset + (maxLane + 1) * laneGap + buffer;
 };
-// #RD END
 
-// #RD START
-// Shared geometry for the full-length view's per-amino-acid-type layout. Per
-// Professor Sun's clarified design, the full-length view is an OVERVIEW, not a
-// detailed layout: the zoomed window below is where exact, collision-free
-// positions belong. So here there is exactly ONE level of spacing -
-// AMINO_ACID_LANE_GAP - the small, tight gap between different selected
-// amino-acid TYPES' vertical bands (e.g. the W band vs the L band). There is no
-// second, sub-lane level: every occurrence of one type shares the exact same y,
-// regardless of how densely its residues cluster in x - see
-// layoutAminoAcidLabelsByType below.
 export const AMINO_ACID_BASE_CONNECTOR_LENGTH = AMINO_LABEL_BASE_OFFSET;
-// Tight, fixed vertical distance between adjacent amino-acid-type lanes, so
-// several selected types stack into compact, clean bands instead of consuming
-// large amounts of screen height.
 export const AMINO_ACID_LANE_GAP = 26;
-// Mirrors constants.js' MAX_SELECTED_AMINO_ACIDS (kept as its own constant here
-// rather than importing that module, so this file stays a pure, dependency-free
-// helper) - at most this many distinct amino-acid TYPE lanes can ever exist on
-// one side of the full-length view, since a user can never select more types
-// than that.
 export const MAX_AMINO_ACID_LANES = 4;
 
-/**
- * Assigns each key in `orderedTypeKeys` a stable band (lane) index, in order
- * of first appearance, packed consecutively from 0 with no gaps - the SAME
- * assignment rule used by layoutAminoAcidLabelsByType below, extracted as its
- * own function so every feature type that needs a band (amino acids AND
- * modifications, currently) can share ONE map instead of each maintaining its
- * own. Because both the full-length and window views build this map from the
- * exact same selection-order array in the same render, a given type always
- * resolves to the same band in both - that's the fix for the two views'
- * tiering disagreeing: they used to run two independent layout algorithms
- * (this by-type one for the full view, layoutAminoAcidLabels' collision-aware
- * per-occurrence packing for the window view) that had no reason to agree.
- *
- * Deliberately generic over `orderedTypeKeys` (any string keys, not just
- * amino-acid letters) - covers the full selectable set (20 amino acids + 6
- * modification keys) with the exact same logic, no per-type special-casing.
- *
- * @param {Array<string>} orderedTypeKeys - e.g. the raw selectedAminoAcids
- *   array (letters and/or modification keys, in selection order); duplicates
- *   are fine, only first appearance matters.
- * @returns {Map<string, number>} type key -> band index (0, 1, 2, ...).
- */
 export const buildTypeBandMap = (orderedTypeKeys) => {
   const bandByType = new Map();
   orderedTypeKeys.forEach((key) => {
@@ -215,35 +81,6 @@ export const buildTypeBandMap = (orderedTypeKeys) => {
   return bandByType;
 };
 
-/**
- * Per-amino-acid-type layout for the full-length protein view: one fixed,
- * compact vertical level per selected amino-acid TYPE. Every occurrence of the
- * same type (e.g. every W, however densely they cluster in x) is given the
- * exact same y-coordinate and therefore the exact same connector-line length;
- * different types get different, tightly-spaced levels
- * (AMINO_ACID_LANE_GAP apart). There is no per-residue sub-lane and no
- * collision/density-driven staggering - dense same-type clusters are expected
- * to overlap somewhat in this overview, in both the full-length AND window
- * views (both call this function - see the `bandMap` param below).
- *
- * @param {Object} params
- * @param {Array<{x: number, text: string, aminoAcid: string}>} params.labels -
- *   arbitrary extra fields (color, position, textDistance, ...) are preserved.
- * @param {'above'|'below'} [params.side] - passed through onto the output.
- * @param {Map<string, number>} [params.bandMap] - type key -> band index, from
- *   buildTypeBandMap(). When provided (the normal case - Visualization/
- *   index.js builds ONE shared map per render and passes it to every call, so
- *   the full-length and window views, and every feature type, agree), every
- *   label's lane comes from this shared map. When omitted, falls back to
- *   building a local map from `labels` itself (lane 0 = first type
- *   encountered in `labels`, same as this function's own original behavior) -
- *   kept for standalone callers/tests that only care about one isolated
- *   layout call and don't need cross-call/cross-view band agreement.
- * @param {number} [params.baseConnectorLength]
- * @param {number} [params.laneGap]
- * @returns {Array} each input label plus { lane, y }, in the same order the
- *   labels were supplied in.
- */
 export const layoutAminoAcidLabelsByType = ({
   labels,
   side,
@@ -264,4 +101,3 @@ export const layoutAminoAcidLabelsByType = ({
     };
   });
 };
-// #RD END

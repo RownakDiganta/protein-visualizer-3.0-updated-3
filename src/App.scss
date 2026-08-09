@@ -31,32 +31,7 @@
   }
 
   &-searchbar {
-    // #RD START
-    // Was 12vh (matching Murphy's own mechanism - see the removed comment
-    // this replaced, and murphy/src/App.scss). Per direct feedback, that
-    // reproduced Murphy's whitespace faithfully but left the title floating
-    // well below the header (20-128px of empty space depending on window
-    // height, growing with it since vh is proportional) - the whole content
-    // block (title, input, button, diagram, window view) sits in normal
-    // document flow starting from this single margin, so THIS is the one
-    // value that needed to shrink to close that gap, per the instruction to
-    // change one container-level spacing value rather than each element's
-    // offset individually.
-    //
-    // Switched from proportional (12vh) to a fixed 76px: the header itself
-    // (MUI AppBar, position: fixed, measured height 64px, not vh-based) is
-    // already height-invariant, so a vh-based margin here can only match its
-    // 64px bottom edge at one specific window height - anywhere else the gap
-    // either shrinks toward/behind the header or balloons back out, which is
-    // exactly what this change is meant to fix. 76px = the header's own
-    // fixed 64px bottom edge + a 12px breathing gap, so "roughly 12px below
-    // the header" now holds at every window height, not just the one it was
-    // tuned against - the same reasoning as the capped-ratio pattern used
-    // for the diagram's own vertical position elsewhere in this app, just
-    // fully fixed here since there's no matching Murphy ratio to preserve
-    // for this particular gap.
     margin-top: 76px;
-    // #RD END
     float: left;
   }
 

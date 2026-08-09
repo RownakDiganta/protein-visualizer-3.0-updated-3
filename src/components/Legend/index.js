@@ -12,21 +12,16 @@ import {
   Tab,
   Tabs,
   Paper,
-  // #RD START
   Chip
-  // #RD END
 } from '@material-ui/core';
 import VisibilityIcon from '@material-ui/icons/Visibility';
 import PropTypes from 'prop-types';
 // import { MuiThemeProvider, createMuiTheme } from 'material-ui/styles';
 
 import { makeStyles } from '@material-ui/core/styles';
-// #RD START
 import constants from '../../static/constants';
-// #RD END
 import './index.scss';
 
-// #RD START
 const {
   AMINO_ACIDS,
   MAX_SELECTED_AMINO_ACIDS,
@@ -34,8 +29,6 @@ const {
   MODIFICATION_OPTIONS
 } = constants;
 
-// Slightly darker variant of a slot color, used for the selected chip's border so
-// it reads as a border against the same color's solid background fill.
 const darkenColor = (hex, amount = 0.2) => {
   const num = parseInt(hex.slice(1), 16);
   const r = Math.floor(((num >> 16) & 0xff) * (1 - amount));
@@ -43,7 +36,6 @@ const darkenColor = (hex, amount = 0.2) => {
   const b = Math.floor((num & 0xff) * (1 - amount));
   return `rgb(${r}, ${g}, ${b})`;
 };
-// #RD END
 
 // const theme = createMuiTheme({
 //   palette: {
@@ -66,16 +58,7 @@ function TabPanel(props) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {/* #RD START */}
-      {/* Plain div, not another <CardContent> - this panel already sits
-          inside legendLeft's own <CardContent>, and MUI's CardContent adds
-          extra (24px) bottom padding to whichever CardContent is the
-          last-child of its parent. Nesting a second CardContent in here
-          stacked that padding on top of the outer one, which was the actual
-          source of the excess empty space at the bottom of the Legend
-          card. */}
       {value === index && <div>{children}</div>}
-      {/* #RD END */}
     </div>
   );
 }
@@ -107,11 +90,7 @@ const useStyles = makeStyles({
     textDecoration: 'none',
     color: '#cb2d39',
     fontWeight: 'bold',
-    // #RD START
-    // Tightened from 15px, per professor feedback to reduce the left panel's
-    // spacing - still a clear gap under the heading, just not as much of one.
     marginBottom: '8px'
-    // #RD END
   },
   pos: {
     marginBottom: 12
@@ -120,9 +99,7 @@ const useStyles = makeStyles({
     flexGrow: 1,
     backgroundColor: '#f8f8ff',
     width: '100%',
-    // #RD START
     marginBottom: '8px'
-    // #RD END
   },
   tab: {
     minWidth: 100,
@@ -172,29 +149,15 @@ function Legend(props) {
     disulfideBonds,
     sequons,
     cysteines,
-    // #RD OLD CODE
-    // free_s,
-    // free_t,
-    // free_k,
-    // free_w,
-    // #RD END OLD CODE
-    // #RD START
     aminoAcids,
     selectedAminoAcids,
     toggleAminoAcid,
-    // #RD END
     toggleGlyco,
     toggleSulfide,
     toggleOutside,
     toggleInside,
     toggleSequons,
     toggleCysteines,
-    // #RD OLD CODE
-    // toggleFreeS,
-    // toggleFreeT,
-    // toggleFreeK,
-    // toggleFreeW,
-    // #RD END OLD CODE
     length,
     species
   } = props;
@@ -206,12 +169,6 @@ function Legend(props) {
   const [showInsideDomain, setShowInside] = useState(true);
   const [showSequons, setShowSequons] = useState(false);
   const [showCysteines, setShowCysteines] = useState(false);
-  // #RD OLD CODE
-  // const [showFreeS, setShowFreeS] = useState(false);
-  // const [showFreeT, setShowFreeT] = useState(false);
-  // const [showFreeK, setShowFreeK] = useState(false);
-  // const [showFreeW, setShowFreeW] = useState(false);
-  // #RD END OLD CODE
   const classes = useStyles();
 
   const handleTabChange = (event, newTabValue) => {
@@ -238,20 +195,6 @@ function Legend(props) {
     } else if (element === 'cysteines') {
       toggleCysteines(!showCysteines);
       setShowCysteines(!showCysteines);
-      // #RD OLD CODE
-      // } else if (element === 'free_k') {
-      //   toggleFreeK(!showFreeK);
-      //   setShowFreeK(!showFreeK);
-      // } else if (element === 'free_s') {
-      //   toggleFreeS(!showFreeS);
-      //   setShowFreeS(!showFreeS);
-      // } else if (element === 'free_t') {
-      //   toggleFreeT(!showFreeT);
-      //   setShowFreeT(!showFreeT);
-      // } else if (element === 'free_w') {
-      //   toggleFreeW(!showFreeW);
-      //   setShowFreeW(!showFreeW);
-      // #RD END OLD CODE
     } else {
       toggleInside(!showInsideDomain);
       setShowInside(!showInsideDomain);
@@ -260,25 +203,7 @@ function Legend(props) {
 
   const infoLeft = (
     <TabPanel index={0} value={tabValue}>
-      {/* #RD START */}
-      {/* Normal flex-column flow with `gap` (see .legend--panelContent) instead
-          of the old negative-margin stacking hack - each row below occupies
-          its own real vertical space and the container grows to fit however
-          many rows are present, so nothing overlaps regardless of how many
-          sections are added. */}
       <div className="legend--panelContent">
-      {/* #RD START */}
-      {/* legend--featureRow: a single plain flex row per feature - label+count
-          Typography followed directly by its eye-icon wrapper, left-aligned
-          with a small gap between them. The eye icon is NOT aligned into a
-          shared column across rows (its x-position naturally follows the
-          label's length, same as Topology/Protein Length/Species below) -
-          this restores the original legend layout after the grid/column
-          version was found to not match it. The standalone "Scientific
-          Symbol" column-header row that used to sit above these rows is
-          removed entirely; that label belongs only on the Scientific Symbol
-          TAB (see the Tabs above), not as a floating column caption inside
-          the Protein Features panel body. */}
       <div className="legend--featureRow">
         <Typography>
           N-Glycan:
@@ -318,8 +243,6 @@ function Legend(props) {
           </Tooltip>
         </div>
       </div>
-      {/* Moved here from the (now removed) right-side legend panel, directly
-          above Topology, per professor feedback. */}
       <div className="legend--featureRow">
         <Typography>
           Free Sequon:
@@ -358,7 +281,6 @@ function Legend(props) {
           </Tooltip>
         </div>
       </div>
-      {/* #RD END */}
       {/* Topology reserves its own real row height for the label + both
           badges - align-items: center (from .legend--menuItem) vertically
           centers all three instead of needing manual marginTop nudges on
@@ -388,10 +310,6 @@ function Legend(props) {
           In
         </Button>
       </div>
-      {/* #RD START */}
-      {/* Moved here from the (now removed) right-side legend panel. Species
-          sits below Topology purely by DOM order + the panel's gap - no
-          special-cased "last row" margin needed. */}
       <div className="legend--menuItem">
         <Typography>
           Protein Length:
@@ -408,7 +326,6 @@ function Legend(props) {
           </Typography>
         </Typography>
       </div>
-      {/* #RD END */}
       </div>
     </TabPanel>
   );
@@ -466,12 +383,6 @@ function Legend(props) {
             height="20"
             fill="none"
           >
-            {/* #RD START */}
-            {/* Matches the diagram's own disulfide-marker treatment (see
-                RESIDUE_MARKER_STROKE in Visualization/index.js) - a thin,
-                subtle dark stroke instead of the white ring/halo the
-                professor asked to have removed, so this legend key still
-                looks like the marker it represents. */}
             <circle
               r="5"
               cx="20"
@@ -486,7 +397,6 @@ function Legend(props) {
               fill="#C76861"
               style={{ stroke: 'rgba(0, 0, 0, 0.35)', strokeWidth: 1 }}
             />
-            {/* #RD END */}
             <line x1="20" y1="18" x2="60" y2="18" style={{ stroke: 'black' }} />
             <line x1="20" y1="18" x2="20" y2="11" style={{ stroke: 'black' }} />
             <text x="5" y="18" fill="black" fontWeight="bold" fontSize="small">
@@ -499,8 +409,6 @@ function Legend(props) {
           </svg>
         </div>
       </div>
-      {/* #RD START */}
-      {/* Moved here from the (now removed) right-side legend panel. */}
       <div className="legend--menuSymbol">
         <Typography>Free Sequon:</Typography>
         <div className="symbol">
@@ -510,12 +418,7 @@ function Legend(props) {
             height="20"
             fill="none"
           >
-            {/* #RD START */}
-            {/* Matches the diagram's own free-sequon marker (see
-                Visualization/index.js) - no stroke, since a solid black
-                fill needs no extra border to stay visible. */}
             <circle r="3" cx="5" cy="10" fill="black" stroke="none" />
-            {/* #RD END */}
             <line x1="12" y1="10" x2="40" y2="10" stroke="black" />
             <text x="45" y="16" fill="black" fontWeight="bold">
               N
@@ -540,7 +443,6 @@ function Legend(props) {
           </svg>
         </div>
       </div>
-      {/* #RD END */}
       </div>
     </TabPanel>
   );
@@ -602,25 +504,10 @@ function Legend(props) {
     </Card>
   );
 
-  // #RD START
-  // Combined amino-acid + modification selector, replacing the old
-  // "Free Amino Acids" section that used to live inside the (now removed)
-  // right-side "Legend and scientific symbols" panel, per professor feedback.
-  //
-  // selectedAminoAcidLetters mirrors the same filter Visualization/index.js
-  // applies before its own amino-acid rendering loop, so a chip's slot color
-  // here always matches the connector-line color actually drawn on the
-  // protein - it must be computed the same way in both places since a
-  // modification's presence/position in `selectedAminoAcids` must never shift
-  // an amino acid's own color slot.
   const selectedAminoAcidLetters = selectedAminoAcids.filter((key) =>
     AMINO_ACIDS.includes(key)
   );
 
-  // modificationDataByKey's keys intentionally match MODIFICATION_OPTIONS'
-  // `key` values (and the existing per-protein data prop names), so a
-  // modification's count can be looked up generically instead of a manual
-  // per-type switch.
   const modificationDataByKey = {
     o_glcnac,
     o_glc,
@@ -630,9 +517,6 @@ function Legend(props) {
     phosphotyrosine
   };
 
-  // Sort by count (desc) same as the amino-acid-only grid used to, now across
-  // both amino acids and modifications together, so the most common items in
-  // this protein show first regardless of which kind they are.
   const selectableItems = [
     ...AMINO_ACIDS.map((aminoAcid) => ({
       key: aminoAcid,
@@ -657,16 +541,6 @@ function Legend(props) {
       }}
     >
       <CardContent>
-        {/* #RD START */}
-        {/* "Amino acids and mods (choose up to N):" is too long to fit on
-            one line at classes.title's size within this panel's width
-            without shrinking the font to the point of being hard to read.
-            Split into a heading ("Amino acids and mods", which DOES fit on
-            one line and still uses classes.title directly - unchanged, so it
-            still matches the left "Legend" heading exactly) plus a smaller
-            subtitle line for the parenthetical count, so the break reads as
-            an intentional title/subtitle pair instead of an awkward
-            mid-sentence wrap. */}
         <div className="legend--panelTitle">
           <Typography className={classes.title} color="textSecondary">
             Amino acids and mods
@@ -675,19 +549,12 @@ function Legend(props) {
             (choose up to {MAX_SELECTED_AMINO_ACIDS}):
           </Typography>
         </div>
-        {/* #RD END */}
         <div className="legend--aminoAcidGrid">
           {selectableItems.map((item) => {
             const isSelected = selectedAminoAcids.includes(item.key);
             const isDisabled =
               !isSelected &&
               selectedAminoAcids.length >= MAX_SELECTED_AMINO_ACIDS;
-            // Slot color only applies to amino-acid letters - modifications
-            // render with their own fixed colors on the protein diagram (see
-            // attachOGalNAcBonds/attachPhosphorylation/etc. in
-            // Visualization/index.js), so giving a modification chip a
-            // rainbow slot color would falsely imply a color link that
-            // doesn't exist.
             const slotIndex = item.isAminoAcid
               ? selectedAminoAcidLetters.indexOf(item.key)
               : -1;
@@ -729,7 +596,6 @@ function Legend(props) {
       </CardContent>
     </Card>
   );
-  // #RD END
 
   return (
     <div>
@@ -750,28 +616,14 @@ Legend.propTypes = {
   disulfideBonds: PropTypes.arrayOf(PropTypes.string).isRequired,
   sequons: PropTypes.arrayOf(PropTypes.string).isRequired,
   cysteines: PropTypes.arrayOf(PropTypes.string).isRequired,
-  // #RD OLD CODE
-  // free_s: PropTypes.arrayOf(PropTypes.string).isRequired,
-  // free_k: PropTypes.arrayOf(PropTypes.string).isRequired,
-  // free_t: PropTypes.arrayOf(PropTypes.string).isRequired,
-  // free_w: PropTypes.arrayOf(PropTypes.string).isRequired,
-  // #RD END OLD CODE
-  // #RD START
   aminoAcids: PropTypes.object,
   selectedAminoAcids: PropTypes.arrayOf(PropTypes.string),
   toggleAminoAcid: PropTypes.func,
-  // #RD END
   toggleGlyco: PropTypes.func,
   toggleSulfide: PropTypes.func,
   toggleOutside: PropTypes.func,
   toggleInside: PropTypes.func,
   toggleSequons: PropTypes.func,
-  // #RD OLD CODE
-  // toggleFreeS: PropTypes.func,
-  // toggleFreeK: PropTypes.func,
-  // toggleFreeT: PropTypes.func,
-  // toggleFreeW: PropTypes.func,
-  // #RD END OLD CODE
   toggleCysteines: PropTypes.func,
   length: PropTypes.number.isRequired,
   species: PropTypes.string.isRequired
@@ -784,17 +636,9 @@ Legend.defaultProps = {
   toggleInside: () => {},
   toggleSequons: () => {},
   toggleCysteines: () => {},
-  // #RD OLD CODE
-  // toggleFreeS: () => {},
-  // toggleFreeT: () => {},
-  // toggleFreeK: () => {},
-  // toggleFreeW: () => {},
-  // #RD END OLD CODE
-  // #RD START
   aminoAcids: {},
   selectedAminoAcids: [],
   toggleAminoAcid: () => {}
-  // #RD END
 };
 
 export default Legend;

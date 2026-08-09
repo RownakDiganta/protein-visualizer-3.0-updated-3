@@ -4,40 +4,19 @@
 .legend {
   &--wrapper {
     position: fixed;
-    // #RD OLD CODE
-    // top: 150px;
-    // #RD END OLD CODE
-    // #RD START
-    // Shifted up ~1cm (150px - 38px), matching --wrapperRight, per professor
-    // feedback that the left legend also sits too low on some screen sizes.
     top: 112px;
-    // #RD END
     left: 10px;
-    // #RD START
-    // Was a flat 250px regardless of content - per feedback, the panel
-    // should hug its actual content instead of stretching wide. fit-content
-    // lets it shrink down to whatever its widest row/tab actually needs;
-    // max-width keeps it from growing past a sane sidebar width if a
-    // longer species name or a wide tab label ever pushes it out.
     width: fit-content;
     max-width: 260px;
-    // #RD END
     background-color: #f8f8ff;
   }
 
   &--wrapperTransparent {
     position: fixed;
-    // #RD OLD CODE
-    // top: 150px;
-    // #RD END OLD CODE
-    // #RD START
     top: 112px;
-    // #RD END
     left: 10px;
-    // #RD START
     width: fit-content;
     max-width: 260px;
-    // #RD END
     background-color: #f8f8ff;
     opacity: 0.2;
     &:hover {
@@ -47,33 +26,16 @@
 
   &--wrapperRight {
     position: fixed;
-    // #RD OLD CODE
-    // top: 150px;
-    // width: 250px;
-    // #RD END OLD CODE
-    // #RD START
-    // Now used only by the standalone "Amino acids and mods" selector panel
-    // (Free Sequon/Cysteine, Protein Length, and Species moved into the left
-    // legend; the old right-side "Legend and scientific symbols" card was
-    // removed) - top stays 112px, matching the left legend, so the panel
-    // sits at the same height with no reserved space above it.
     top: 112px;
     width: 300px;
-    // #RD END
     right: 10px;
     background-color: #f8f8ff;
   }
 
   &--wrapperRightTransparent {
     position: fixed;
-    // #RD OLD CODE
-    // top: 150px;
-    // width: 250px;
-    // #RD END OLD CODE
-    // #RD START
     top: 112px;
     width: 300px;
-    // #RD END
     right: 10px;
     background-color: #f8f8ff;
     opacity: 0.2;
@@ -82,15 +44,6 @@
     }
   }
 
-  // #RD START
-  // Scoped ONLY to the left "Legend" card (not the right "Amino acids and
-  // mods" panel) per professor feedback to specifically reduce the LEFT
-  // panel's spacing. MUI's CardContent defaults to 16px padding on every
-  // side, PLUS a `:last-child` rule that bumps bottom padding to 24px - that
-  // last-child padding was the single largest source of avoidable height
-  // here now that the panel's own content is otherwise tight (a real,
-  // non-hard-coded card margin, not a magic-number hack: MUI's own default
-  // is being reduced, not padding invented from nothing).
   &--wrapper,
   &--wrapperTransparent {
     .MuiCardContent-root {
@@ -100,38 +53,12 @@
       }
     }
   }
-  // #RD END
 
-  // #RD START
-  // Each row is a normal-flow flex row (label + icon/badges); vertical spacing
-  // BETWEEN rows comes entirely from the parent --panelContent's `gap` (see
-  // below), not from margins on the rows themselves - this replaces the old
-  // negative-margin "tight stacking" hack, which was tuned for one specific,
-  // fixed sequence of rows and broke (overlapping text) as soon as rows were
-  // added/reordered. align-items: center keeps multi-child rows like Topology
-  // (label + two Buttons) vertically aligned without manual offsets.
-  //
-  // --menuItem (Topology/Protein Length/Species) and --featureRow (the
-  // eye-icon rows) share ONE identical padding contract here so every row -
-  // regardless of which of the two layouts it uses - has the same top/bottom
-  // padding, instead of each relying on its own content to happen to look
-  // the same size.
-  //
-  // #RD START
-  // A prior "aligned eye icon column" version of this panel used a grid
-  // layout + a fixed min-height per row (28px) here; per feedback that
-  // didn't match the original legend style (rows read as too spaced out,
-  // and the icons' shared-column alignment was itself the wrong look - see
-  // --featureRow below). min-height is dropped entirely - each row now
-  // sizes to its own content (label/icon line-height) - and padding is
-  // trimmed to the smallest amount that still gives a visible gap above
-  // rows' text ascenders/descenders.
   &--menuItem,
   &--featureRow {
     padding: 1px 0;
     box-sizing: border-box;
   }
-  // #RD END
 
   &--menuItem {
     display: flex;
@@ -143,37 +70,12 @@
     align-items: center;
   }
 
-  // #RD START
-  // Plain left-aligned flex row - label+count directly followed by its eye
-  // icon, with a small fixed gap between them. This is the original legend
-  // look: each row's icon sits immediately after its own text, so its
-  // x-position naturally differs row to row depending on label length (it
-  // is NOT aligned into a shared vertical column - a grid-based version that
-  // did that was tried and didn't match the requested layout).
   &--featureRow {
     display: flex;
     align-items: center;
     justify-content: flex-start;
     gap: 6px;
 
-    // #RD START
-    // .button-visibility--on/--off (below) carry `position: relative;
-    // bottom: 11px; left: 10px;` tuned for their OTHER usage (the Legend
-    // title's own transparency toggle, left untouched) - inside a feature
-    // row that offset visually lifts the icon 11px above and 10px right of
-    // where align-items: center already placed it, which is exactly what
-    // made every eye float above its row's text instead of sitting level
-    // with it. Neutralized here, scoped to feature-row icons only (two
-    // classes - .legend--featureRow plus the button-visibility class -
-    // beats the single-class original rule's specificity regardless of
-    // stylesheet order), so the title's own toggle keeps its existing nudge
-    // untouched while these rows rely on the row's own flex centering.
-    //
-    // MuiIconButton-root's padding is also trimmed here (from size="small"'s
-    // own 3px default) so the button's rendered box is close to the same
-    // height as the text's line-height - otherwise the button stays the
-    // tallest child in the row and keeps the row taller than the text needs,
-    // even once it's centered instead of floating.
     .button-visibility--on,
     .button-visibility--off {
       position: static;
@@ -183,47 +85,18 @@
         line-height: 1;
       }
     }
-    // #RD END
   }
-  // #RD END
 
   // Wraps each tab panel's rows (see infoLeft/symbolLeft in Legend/index.js).
   // Normal block/flex flow - the container's height always grows to fit
   // however many rows it holds, so it can never render shorter than its
   // actual content.
-  // #RD START
-  // Tightened further (6px -> 3px) per feedback that rows should sit close
-  // together - roughly line-height plus a few px, not a visibly separated
-  // list.
   &--panelContent {
     display: flex;
     flex-direction: column;
     gap: 3px;
   }
-  // #RD END
 
-  // #RD START
-  // align-items: center was missing here, so this flex row fell back to the
-  // default (stretch) - combined with .button-visibility--on/--off's own
-  // `position: relative; bottom: 11px;` (kept for this row's OTHER usage,
-  // see --featureRow above), the eye toggle rendered 11px above center
-  // instead of level with "Legend". Scoped to just `bottom` (not the whole
-  // position/left, unlike --featureRow's fix) so the icon's existing
-  // horizontal spacing from the title is untouched - only its vertical
-  // offset was ever the problem here.
-  //
-  // bottom: 4px (not 0) because align-items: center alone still leaves a
-  // small, real, measured gap: the icon button's own box (48px, from its
-  // default non-small padding) is taller than the title's line-height box
-  // (30px), and text glyphs don't render perfectly centered within their own
-  // line-height box (browsers split the leading above/below a font's glyphs
-  // based on its own ascent/descent metrics, not an even 50/50 split) - so
-  // even with both boxes centered against each other, the two glyphs' actual
-  // optical centers land a few px apart. Measured directly (real
-  // getBoundingClientRect on both elements, not assumed): the icon's own
-  // visual center sat 4px below the title's after align-items: center alone,
-  // so a small 4px lift closes that gap exactly - confirmed by re-measuring
-  // afterward (both centers land on the same pixel).
   &--header {
     display: flex;
     align-items: center;
@@ -236,9 +109,7 @@
       bottom: 4px;
     }
   }
-  // #RD END
 
-  // #RD START
   &--aminoAcidGrid {
     display: flex;
     flex-wrap: wrap;
@@ -248,12 +119,7 @@
     margin-bottom: 10px;
     max-width: 260px;
   }
-  // #RD END
 
-  // #RD START
-  // Title/subtitle pair for the "Amino acids and mods" panel heading (see
-  // Legend/index.js) - flex column + gap controls all the spacing between
-  // the two lines, so no margin on either Typography is needed.
   &--panelTitle {
     display: flex;
     flex-direction: column;
@@ -261,33 +127,21 @@
     margin-bottom: 10px;
   }
 
-  // Same red as classes.title (matches the left "Legend" heading's color),
-  // just smaller - reads as a secondary line under the main heading rather
-  // than a continuation that happened to wrap.
   &--panelSubtitle {
     font-size: 13px;
     font-weight: bold;
     color: #cb2d39;
   }
-  // #RD END
 }
 
-// #RD START
 .legend--aminoAcidChip {
   font-size: 11px;
   margin: 0;
 }
 
-// #RD START
-// Selected chips get their slot color via inline style (see Legend/index.js).
-// MUI's own clickable-chip hover effect changes background-color to a fixed grey
-// tint that would otherwise flash over/replace that custom color on hover; using
-// opacity instead keeps the assigned color visible while still giving hover
-// feedback.
 .legend--aminoAcidChip:hover {
   opacity: 0.85;
 }
-// #RD END
 
 .button-visibility--off {
   position: relative;

@@ -54,15 +54,7 @@ function CustomAppBar(props) {
   const [anchorExportEl, setAnchorExportEl] = useState(null);
   const sliderOpen = Boolean(anchorSliderEl);
   const exportOpen = Boolean(anchorExportEl);
-  // #RD START
-  // Display-only mirror of the slider's current position - the "Current Zoom"
-  // label needs to stay visible at rest (previously the only value shown was
-  // a tooltip that appeared while actively dragging, via valueLabelDisplay
-  // "auto"). Deliberately separate from setScaleFactor/valueText below: this
-  // state never drives the actual visualization scaling, it only reflects it
-  // for display, so the zoom math itself is untouched.
   const [zoomValue, setZoomValue] = useState(1);
-  // #RD END
 
   const handleSliderClose = () => {
     setAnchorSliderEl(null);
@@ -216,15 +208,6 @@ function CustomAppBar(props) {
               paper: 'wide-menu'
             }}
           >
-            {/* #RD START */}
-            {/* Title, current-value readout, and slider now share one
-                centered "zoom-controls" column (see AppBar/index.scss)
-                instead of the slider sitting in its own item and spanning
-                edge-to-edge with no persistent value display - the value
-                previously only appeared as a tooltip while actively
-                dragging. zoomValue is purely a display mirror (see above);
-                getAriaValueText/setScaleFactor below are unchanged, so the
-                actual scaling math is untouched. */}
             <MenuItem
               onClick={handleSliderClose}
               classes={{ root: 'zoom-controls' }}
@@ -248,7 +231,6 @@ function CustomAppBar(props) {
                 max={15}
               />
             </MenuItem>
-            {/* #RD END */}
           </Menu>
         </div>
       </Toolbar>

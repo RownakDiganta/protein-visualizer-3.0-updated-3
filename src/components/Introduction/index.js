@@ -52,19 +52,6 @@ function Introduction(props) {
                 Search feature is case-insensitive.
               </Typography>
             </li>
-            {/*
-            #RD OLD CODE
-            <li className="introduction--bullet">
-              <Typography variant="body2" display="inline">
-                Visualization features include inside domain, outside domain, glycosylation sites, O-linked GalNAc sites, O-linked Glc sites, N-linked Glc glycation site,
-                phosphoserine sites, phosphothreonine sites, phosphotyrosine sites, disulfide bonds,
-                sequon sites, cysteine sites, unoccupied serine sites, unoccupied threonine sites, unoccupied lysine sites, and
-                unoccupied tryptophan sites
-              </Typography>
-            </li>
-            #RD END OLD CODE
-            */}
-            {/* #RD START */}
             <li className="introduction--bullet">
               <Typography variant="body2" display="inline">
                 Visualization features include inside domain, outside domain, glycosylation sites, O-linked GalNAc sites, O-linked Glc sites, N-linked Glc glycation site,
@@ -79,7 +66,6 @@ function Introduction(props) {
                 unoccupied (free) positions, so the display doesn&apos;t get too crowded.
               </Typography>
             </li>
-            {/* #RD END */}
             <li className="introduction--bullet">
               <Typography variant="body2" display="inline">
                 If the current scale of the visualization is not sufficient to identify patterns, a sliding scale is

@@ -15,42 +15,12 @@ import './App.scss';
 import SearchBar from './components/ProteinSearchBar';
 import parser from './parser';
 import csvData from './parser/Total_combined_wHuman_results_updated.csv';
-// #RD START
 import constants from './static/constants';
 
 const { AMINO_ACIDS } = constants;
-// #RD END
 
 const { getProteins } = parser;
 // one-time command to setup and activate the virtual environemnt script: ./venv/Scripts/activate
-// #RD OLD CODE
-// const VISUALIZATION_HEIGHT_CAP = 600;
-// The Visualization component centers the protein spine at roughly half of
-// whatever `height` it's given (see SULFIDE_POS = innerHeight/2 + ... in
-// Visualization/index.js), and sizes its own <svg> to that same `height`.
-// Passing the FULL browser viewport height (often 800-1200px+) here meant
-// the spine - and everything drawn relative to it - rendered several hundred
-// pixels down from the top of the SVG, which is what actually pushed the
-// whole protein diagram down the page; no amount of trimming margins above
-// it (search bar, Legend panel) could ever compensate for that, since those
-// are page-level spacing and this is the SVG's own internal coordinate
-// space. That reasoning was sound AT THE TIME - it was fixing a real problem
-// - but the fix was a workaround for problems that have since been fixed
-// properly: Visualization/index.js used to have duplicated per-view geometry
-// and a frozen (mount-only) width source, so clamping the one number that
-// fed both views' layout was the only lever available. Now that geometry is
-// single-sourced from a live, reactive width/height (see windowSize below)
-// and DIAGRAM_HORIZONTAL_MARGIN_LEFT/_RIGHT already scale with width
-// instead of assuming a fixed viewport, the cap is no longer masking a
-// layout bug - it's just preventing this app's vertical position from
-// matching Murphy's, whose own margin.top = height/15 is deliberately
-// proportional to the REAL, uncapped window height (see
-// murphy/src/components/Visualization/index.js and murphy/src/App.jsx,
-// reference only). Per feedback, the goal is for the diagram to sit where
-// Murphy's sits, which is a height-proportional position by design - a cap
-// makes that impossible at any height other than the one it happens to
-// equal, so it's removed rather than retuned.
-// #RD END OLD CODE
 
 function App() {
   const ToCaptureRef = React.useRef();
@@ -63,26 +33,6 @@ function App() {
   const [fullScale, setFullScale] = useState(false);
   const [fullScaleDisabled, setFullScaleDisabled] = useState(true);
   const [errorMessage, setErrorMessage] = React.useState('');
-  // #RD START
-  // Was `const { innerWidth, innerHeight } = window;` at MODULE scope (read
-  // once, when the JS bundle first evaluates, never again) - per feedback,
-  // that froze the width fed into Visualization (width={innerWidth} below)
-  // at whatever the viewport happened to be at that one moment, while
-  // Visualization/index.js's own <svg> width attribute and its
-  // .svg-wrapper--centered CSS wrapper (width: 100vw) both read the browser's
-  // TRUE, LIVE current width independently - two different sources for what
-  // should be the same number. Browser zoom (ctrl +/-) changes
-  // window.innerWidth and fires a real 'resize' event WITHOUT a page reload
-  // (fewer/more CSS px fit the same physical window), so the instant a user
-  // zoomed, the frozen prop and the live CSS values diverged - the frozen
-  // value drove where the bar's content was positioned (in the SVG's own
-  // local coordinate space), while the live value drove how big/where the
-  // SVG's own box actually rendered on screen, so the two edges of the bar
-  // shifted apart instead of staying centered together. State + a resize
-  // listener keeps this in sync with the live viewport at all times, exactly
-  // like Visualization/index.js's own live window.innerWidth reads already
-  // were (see the innerWidth prop passed below, and its own read of this same
-  // state - no more frozen vs live mismatch anywhere in this chain).
   const [windowSize, setWindowSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight
@@ -94,14 +44,7 @@ function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  // #RD START
-  // Was Math.min(windowSize.height, VISUALIZATION_HEIGHT_CAP) - see the
-  // removed constant's comment above for why the cap came off. Passed
-  // straight through now, so Visualization's own margin.top = height/15
-  // (see Visualization/index.js) is proportional to the REAL window height,
-  // matching Murphy's mechanism instead of a clamped approximation of it.
   const visualizationHeight = windowSize.height;
-  // #RD END
 
   const updateScaleFactor = (val) => {
     setScaleFactor(val);
@@ -353,12 +296,6 @@ function App() {
       return [outside, inside];
     }
 
-    // #RD START
-    // Generalized coverage lookup so extractFreeAnimo() can be reused for all 20
-    // amino acids instead of one bespoke call per letter. Only S/T/K have bonds that
-    // "cover" them (O-linked glycans/phosphorylation for S & T, glycation for K);
-    // every other amino acid (including C, which only needs to respect disulfide
-    // bonds - already handled by the dsBonds argument) has no extra coverage.
     function extractCoveredPositions(aminoAcid) {
       if (aminoAcid === 'S') {
         return [
@@ -392,7 +329,6 @@ function App() {
       });
       return result;
     }
-    // #RD END
 
     function getProteinInfo() {
       const entry = topDf.filter(
@@ -401,39 +337,7 @@ function App() {
       const domain = parseSequence(entry['Orientation'], entry['Length']);
       const sequons = extractSequons(extractGlycoBonds());
       const cysteines = extractCysteines(extractDsBonds());
-      // #RD OLD CODE
-      // const serines = extractFreeAnimo(
-      //   'S',
-      //   [
-      //     extractOGalNAc(),
-      //     extractOGlc(),
-      //     extractPhosphorylation('Phosphoserine')
-      //   ],
-      //   extractDsBonds()
-      // );
-      // const threonines = extractFreeAnimo(
-      //   'T',
-      //   [
-      //     extractOGalNAc(),
-      //     extractOGlc(),
-      //     extractPhosphorylation('Phosphothreonine')
-      //   ],
-      //   extractDsBonds()
-      // );
-      // const lysines = extractFreeAnimo(
-      //   'K',
-      //   [extractGlycation()],
-      //   extractDsBonds()
-      // );
-      // const tryptophan = extractFreeAnimo(
-      //   'W',
-      //   [],
-      //   extractDsBonds()
-      // );
-      // #RD END OLD CODE
-      // #RD START
       const aminoAcids = buildAminoAcids(extractDsBonds());
-      // #RD END
       return {
         value: entry['Name'],
         description: '',
@@ -454,19 +358,7 @@ function App() {
         sequons: sequons[1],
         totalCysteines: cysteines[0],
         cysteines: cysteines[1],
-        // #RD OLD CODE
-        // totalS: serines[0],
-        // freeS: serines[1],
-        // totalT: threonines[0],
-        // freeT: threonines[1],
-        // totalK: lysines[0],
-        // freeK: lysines[1],
-        // totalW: tryptophan[0],
-        // freeW: tryptophan[1]
-        // #RD END OLD CODE
-        // #RD START
         aminoAcids
-        // #RD END
       };
     }
     return getProteinInfo();

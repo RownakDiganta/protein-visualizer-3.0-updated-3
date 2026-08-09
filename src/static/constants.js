@@ -44,21 +44,13 @@ const COLOR_PALLETE = [
   '#d6186a'
 ];
 
-// #RD START
-// All 20 standard amino acids, shared by the backend extraction (App.jsx) and the
-// frontend selection UI (Legend/Visualization) so the letter list lives in one place.
 const AMINO_ACIDS = [
   'A', 'R', 'N', 'D', 'C', 'Q', 'E', 'G', 'H', 'I',
   'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V'
 ];
 
-// Users may display at most this many free-amino-acid tracks at once, to keep the
-// visualization from getting crowded.
 const MAX_SELECTED_AMINO_ACIDS = 4;
 
-// Rendering style per letter, reusing the 'solid'/'white' circle styles and text
-// offset that attachFreeAmAcids() already supports. Amino acids not listed here fall
-// back to DEFAULT_AMINO_ACID_RENDER_STYLE.
 const AMINO_ACID_RENDER_STYLE = {
   S: { visualize: 'solid', textDistance: 0 },
   T: { visualize: 'solid', textDistance: 0 },
@@ -67,17 +59,7 @@ const AMINO_ACID_RENDER_STYLE = {
 };
 
 const DEFAULT_AMINO_ACID_RENDER_STYLE = { visualize: 'solid', textDistance: 0 };
-// #RD END
 
-// #RD START
-// Non-amino-acid "modification" options that share the same combined selector
-// panel and MAX_SELECTED_AMINO_ACIDS limit as the amino-acid letters (see
-// toggleAminoAcidSelection/selectedAminoAcids in Visualization/index.js) -
-// selecting any mix of up to MAX_SELECTED_AMINO_ACIDS amino acids and/or
-// modifications is allowed, since both live in the same selection array.
-// `key` matches the existing per-protein data prop name (App.jsx/parser) so it
-// can be used directly both as the selection-array entry and to look up that
-// modification's count/visibility; `label` is the exact existing display text.
 const MODIFICATION_OPTIONS = [
   { key: 'o_glcnac', label: 'O-GalNAc' },
   { key: 'o_glc', label: 'O-Glc' },
@@ -86,30 +68,21 @@ const MODIFICATION_OPTIONS = [
   { key: 'phosphothreonine', label: 'PhosphoT' },
   { key: 'phosphotyrosine', label: 'PhosphoY' }
 ];
-// #RD END
 
-// #RD START
-// Stable per-selection-slot colors (Okabe-Ito colorblind-friendly palette) so the
-// 1st/2nd/3rd/4th selected amino acid each get a distinct, readable connector-line/
-// marker/label color. Shared between Visualization (rendering) and Legend
-// (chip color-dot), indexed by the amino acid's position in selectedAminoAcids.
 const SELECTED_AMINO_ACID_COLORS = [
   '#0072B2',
   '#D55E00',
   '#009E73',
   '#CC79A7'
 ];
-// #RD END
 
 export default {
   initialOptions,
   COLOR_PALLETE,
-  // #RD START
   AMINO_ACIDS,
   MAX_SELECTED_AMINO_ACIDS,
   AMINO_ACID_RENDER_STYLE,
   DEFAULT_AMINO_ACID_RENDER_STYLE,
   SELECTED_AMINO_ACID_COLORS,
   MODIFICATION_OPTIONS
-  // #RD END
 };

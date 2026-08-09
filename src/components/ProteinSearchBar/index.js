@@ -4,14 +4,7 @@
 import React, { useState } from 'react';
 import FormControl from '@material-ui/core/FormControl';
 import './index.scss';
-// #RD OLD CODE
-// import { Button, OutlinedInput, InputLabel } from '@material-ui/core';
-// #RD END OLD CODE
-// #RD START
-// InputLabel (MUI's floating label) is no longer used - see the render method below
-// for why it was replaced with a plain static Typography label.
 import { Button, OutlinedInput, Typography } from '@material-ui/core';
-// #RD END
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 /*
@@ -46,39 +39,6 @@ function SearchBar(props) {
   return (
     <MuiThemeProvider>
       <FormControl className="search-form">
-        {/* #RD OLD CODE
-        <InputLabel style={{ marginLeft: '0.4rem' }}>
-          Protein Accession Number
-        </InputLabel>
-        <InputLabel shrink htmlFor="search-bar" style={{ marginLeft: '0.4rem' }}>
-          Protein Accession Number
-        </InputLabel>
-        <Typography className="search-form__label">
-          Protein Accession Number
-        </Typography>
-        #RD END OLD CODE */}
-        {/* #RD OLD CODE
-        <Typography className="search-form__label">
-          Protein Accession
-          <br />
-          Number
-        </Typography>
-        <OutlinedInput
-          id="search-bar"
-          style={{ marginTop: '1.0rem' }}
-          placeholder="Ex. P04439"
-          onChange={handleChange}
-          onKeyUp={handleKeyUp}
-        />
-        #RD END OLD CODE */}
-        {/* #RD START */}
-        {/* Static, centered, two-line label instead of MUI's floating InputLabel -
-            the floating label (even with shrink) still overlapped the outlined
-            box/typed value in both empty and filled states.
-            The OutlinedInput now comes BEFORE the label in the DOM (with the label
-            visually restored to the top via CSS `order: -1` in index.scss) so a pure
-            CSS sibling selector - .Mui-focused ~ .search-form__label - can make the
-            label glow while the input is focused, with no JS focus-tracking needed. */}
         <OutlinedInput
           id="search-bar"
           style={{ marginTop: '1.0rem' }}
@@ -91,7 +51,6 @@ function SearchBar(props) {
           <br />
           Number
         </Typography>
-        {/* #RD END */}
       </FormControl>
       <Button
         type="submit"
