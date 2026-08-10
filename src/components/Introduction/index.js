@@ -128,6 +128,15 @@ function Introduction(props) {
                 International Journal of Molecular Sciences. 2023; 24(22):16182.
               </Typography>
             </li>
+            <li className="introduction--bullet">
+              <Typography variant="body2" display="inline">
+                <Link href='https://pubs.acs.org/acbcct/article-abstract/19/9/1930/88251/Protein-Visualizer-2-0-Intuitive-and-Interactive?redirectedFrom=fulltext'>
+                Protein Visualizer 2.0: Intuitive and Interactive Visualization of Protein Topology and Co/Post-Translational Modifications
+                </Link>
+                <br/>
+                Desai, M. and Sun, B.*, ACS Chem. Biol. (2024) 19 (9): 1930–1934.
+              </Typography>
+            </li>
           </ul>
           <Typography variant="body1">
           For further information, contact Dr. Bingyun Sun: bingyun_sun@sfu.ca
