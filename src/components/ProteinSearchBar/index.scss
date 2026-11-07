@@ -1,0 +1,72 @@
+// src/components/ProteinSearchBar/index.scss
+// Sizing styles for the protein accession-number search form.
+.search-bar{
+    min-width: 300px;
+    width: 15vw;
+}
+
+// MUI's outlined input and contained button render at these heights; the
+// difference is what the button has to rise by to centre against the input.
+$input-height: 56px;
+$button-height: 36px;
+
+// Input (with its label stacked above) on the left, Search button inline on the
+// right. Bottom-aligned so the button tracks the input box rather than the
+// taller label+input column.
+.search-form-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.search-form__button {
+  margin-left: 0.3rem;
+  margin-bottom: ($input-height - $button-height) / 2;
+}
+
+.search-form__label {
+  text-align: center;
+  line-height: 1.1;
+  margin-bottom: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #222222;
+  order: -1;
+  transition: color 0.25s ease, text-shadow 0.25s ease;
+}
+
+.search-form .MuiOutlinedInput-root {
+  background-color: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-form .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #3f51ff;
+  border-width: 2px;
+  box-shadow: 0 0 8px rgba(63, 81, 255, 0.35),
+              0 0 14px rgba(255, 255, 255, 0.9);
+}
+
+.search-form .MuiOutlinedInput-input {
+  color: #000000;
+}
+
+.search-form .MuiOutlinedInput-input::placeholder {
+  color: #999999;
+  opacity: 1;
+}
+
+.search-form .MuiOutlinedInput-root.Mui-focused ~ .search-form__label {
+  color: #3f51ff;
+  font-weight: 600;
+  text-shadow:
+    0 0 4px rgba(63, 81, 255, 0.35),
+    0 0 8px rgba(63, 81, 255, 0.25);
+}

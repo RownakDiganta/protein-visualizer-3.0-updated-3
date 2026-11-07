@@ -1,0 +1,68 @@
+// src/components/Visualization/index.scss
+// Text/label styling for disulfide and glycosylation annotations, plus
+// layout for the main SVG wrapper and the offscreen window-view SVG.
+
+$label-font-family: Arial, Helvetica, sans-serif;
+
+.sulfide-labels {
+  font-size: 1.0rem;
+  font-weight: bold;
+  font-family: $label-font-family;
+  &--pos {
+    font-size: 0.75rem;
+    font-weight: bold;
+    font-family: $label-font-family;
+  }
+}
+
+.amino-acid-label {
+  font-size: 1.0rem;
+  font-weight: bold;
+  font-family: $label-font-family;
+  &--pos {
+    font-size: 0.75rem;
+    font-weight: bold;
+    font-family: $label-font-family;
+  }
+}
+
+.glyco-labels {
+  font-size: 1.0rem;
+  font-weight: bold;
+  font-family: $label-font-family;
+  color: white;
+  &--pos {
+    font-size: 0.75rem;
+    font-weight: bold;
+    font-family: $label-font-family;
+    color: white;
+  }
+}
+
+.windowSvg--wrapper {
+  display: block;
+  width: 100%;
+}
+
+.window-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  margin-top: 24px;
+  gap: 12px;
+}
+
+.svg-wrapper{
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.svg-wrapper--centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  margin-top: 15px;
+}

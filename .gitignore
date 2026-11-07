@@ -1,0 +1,8 @@
+node_modules/
+build/
+.DS_Store
+.env
+.env.local
+npm-debug.log*
+coverage/
+NOTES.md

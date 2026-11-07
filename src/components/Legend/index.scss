@@ -1,0 +1,173 @@
+// src/components/Legend/index.scss
+// Fixed-position styling for the left/right legend panels, including the
+// hover-to-reveal transparency effect and visibility-toggle button colors.
+.legend {
+  &--wrapper {
+    position: fixed;
+    top: 112px;
+    left: 10px;
+    width: fit-content;
+    max-width: 260px;
+    background-color: #f8f8ff;
+  }
+
+  &--wrapperTransparent {
+    position: fixed;
+    top: 112px;
+    left: 10px;
+    width: fit-content;
+    max-width: 260px;
+    background-color: #f8f8ff;
+    opacity: 0.2;
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &--wrapperRight {
+    position: fixed;
+    top: 112px;
+    width: 300px;
+    right: 10px;
+    background-color: #f8f8ff;
+  }
+
+  &--wrapperRightTransparent {
+    position: fixed;
+    top: 112px;
+    width: 300px;
+    right: 10px;
+    background-color: #f8f8ff;
+    opacity: 0.2;
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &--wrapper,
+  &--wrapperTransparent {
+    .MuiCardContent-root {
+      padding: 10px 12px;
+      &:last-child {
+        padding-bottom: 10px;
+      }
+    }
+  }
+
+  &--menuItem,
+  &--featureRow {
+    padding: 1px 0;
+    box-sizing: border-box;
+  }
+
+  &--menuItem {
+    display: flex;
+    align-items: center;
+  }
+
+  &--menuSymbol {
+    display: flex;
+    align-items: center;
+  }
+
+  &--featureRow {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+
+    .button-visibility--on,
+    .button-visibility--off {
+      position: static;
+
+      .MuiIconButton-root {
+        padding: 0;
+        line-height: 1;
+      }
+    }
+  }
+
+  // Wraps each tab panel's rows (see infoLeft/symbolLeft in Legend/index.js).
+  // Normal block/flex flow - the container's height always grows to fit
+  // however many rows it holds, so it can never render shorter than its
+  // actual content.
+  &--panelContent {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &--header {
+    display: flex;
+    align-items: center;
+    width: max-content;
+    margin-bottom: -15px;
+    margin-top: -15px;
+
+    .button-visibility--on,
+    .button-visibility--off {
+      bottom: 4px;
+    }
+  }
+
+  &--aminoAcidGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    row-gap: 8px;
+    margin-top: 6px;
+    margin-bottom: 10px;
+    max-width: 260px;
+  }
+
+  &--panelTitle {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+  }
+
+  &--panelSubtitle {
+    font-size: 13px;
+    font-weight: bold;
+    color: #cb2d39;
+  }
+}
+
+.legend--aminoAcidChip {
+  font-size: 11px;
+  margin: 0;
+}
+
+.legend--aminoAcidChip:hover {
+  opacity: 0.85;
+}
+
+.button-visibility--off {
+  position: relative;
+  bottom: 11px;
+  left: 10px;
+  .MuiIconButton-root {
+    color: #cb2d39;
+  }
+}
+
+.button-visibility--on {
+  position: relative;
+  bottom: 11px;
+  left: 10px;
+  .MuiIconButton-root {
+    color: #004d00;
+  }
+}
+
+.bold-text {
+  font-weight: bold;
+  margin-left: 7px;
+}
+
+.symbol {
+  display: inline;
+  position: relative;
+  left: 10px;
+}
