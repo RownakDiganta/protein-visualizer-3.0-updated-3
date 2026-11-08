@@ -413,7 +413,26 @@ function App() {
     let canvasPromise = html2canvas(ToCaptureRef.current.closest('.App'), {
       useCORS: true, // in case you have images stored in your application
       scrollX: -window.scrollX,
-      scrollY: -window.scrollY
+      scrollY: -window.scrollY,
+      // html2canvas drops the faint legend cards' opacity when capturing from
+      // .App, so in the copy it renders, replace that opacity with a white
+      // overlay that looks the same on the white page.
+      onclone: (clonedDoc) => {
+        clonedDoc
+          .querySelectorAll('[class*="legend--wrapper"]')
+          .forEach((card) => {
+            const opacity = parseFloat(
+              clonedDoc.defaultView.getComputedStyle(card).opacity
+            );
+            if (!(opacity < 1)) return;
+            card.style.opacity = '1';
+            const veil = clonedDoc.createElement('div');
+            veil.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;z-index:10;background:rgba(255,255,255,${
+              1 - opacity
+            });`;
+            card.appendChild(veil);
+          });
+      }
     });
     canvasPromise.then((canvas) => {
       const image = canvas.toDataURL('image/jpeg', 1.0);
