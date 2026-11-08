@@ -408,9 +408,12 @@ function App() {
   };
 
   const captureScreenshot = () => {
-    let canvasPromise = html2canvas(ToCaptureRef.current, {
+    // Capture the whole app (header and accession search included), rendered
+    // as if scrolled to the top so fixed elements stay in place.
+    let canvasPromise = html2canvas(ToCaptureRef.current.closest('.App'), {
       useCORS: true, // in case you have images stored in your application
-      scrollX: -window.scrollX
+      scrollX: -window.scrollX,
+      scrollY: -window.scrollY
     });
     canvasPromise.then((canvas) => {
       const image = canvas.toDataURL('image/jpeg', 1.0);
@@ -540,13 +543,22 @@ function App() {
   };
 
   const captureWindowSVG = () => {
-    const htmlStr = document.getElementById('windowSvg');
+    const liveSvg = document.getElementById('windowSvg');
+    const htmlStr = liveSvg.cloneNode(true);
+    // Inline on-screen fonts on text (e.g. NH2/COOH inherit theirs from the
+    // page body, which a standalone SVG does not have).
+    const liveText = liveSvg.querySelectorAll('text, tspan');
+    htmlStr.querySelectorAll('text, tspan').forEach((el, i) => {
+      const computed = window.getComputedStyle(liveText[i]);
+      ['font-family', 'font-size', 'font-weight', 'font-style'].forEach(
+        (prop) => el.style.setProperty(prop, computed.getPropertyValue(prop))
+      );
+    });
     const style = createStyleElementFromCSS();
     htmlStr.insertBefore(style, htmlStr.firstChild);
 
     const data = new XMLSerializer().serializeToString(htmlStr);
     const blob = new Blob([data], { type: 'image/svg+xml;charset=utf-8' });
-    style.remove();
 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
